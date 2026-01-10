@@ -6,8 +6,16 @@ import os
 from dotenv import load_dotenv
 
 from gemini_service import generate_theme_options
+from database.database_base import DatabaseBase
+from database.tour import TourRepository
+from database.tts_storage import TTSRepository
 
 load_dotenv()
+
+# __Initialize Database__
+db_base = DatabaseBase("database/db.json")
+tour_repo = TourRepository(db_base)
+tts_repo = TTSRepository(db_base)
 
 app = FastAPI(
     title="Jorian Flow Tour API",
