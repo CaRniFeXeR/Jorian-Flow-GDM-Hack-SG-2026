@@ -1,12 +1,28 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
+import { useOnboarding } from '../../context/OnboardingContext';
 
 interface WelcomeScreenProps {
     onNext: () => void;
 }
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNext }) => {
+    const { fetchThemes, userLocation } = useOnboarding();
+
+    const handleGetStarted = async () => {
+        // Trigger theme fetching in the background
+        // Don't wait for it to complete - it will load while user selects preferences
+        if (userLocation.latitude !== null && userLocation.longitude !== null) {
+            fetchThemes().catch(error => {
+                console.error('Error fetching themes in background:', error);
+            });
+        }
+        
+        // Move to next step immediately
+        onNext();
+    };
+
     return (
         <motion.div
             key="step0"
@@ -33,7 +49,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onNext }) => {
             <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={onNext}
+                onClick={handleGetStarted}
                 className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-shadow"
             >
                 Get Started

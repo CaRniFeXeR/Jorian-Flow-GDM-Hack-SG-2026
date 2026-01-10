@@ -1,99 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useOnboarding } from '../../context/OnboardingContext';
-import { getThemeOptionsApiV1ThemeOptionsPost } from '../../client';
-import type { ThemeOptionsResponse } from '../../client';
-
-interface ThemeOption {
-    id: string;
-    label: string;
-    icon: string;
-    description: string;
-}
+import { guardrailValidationApiV1GuardrailPost } from '../../client';
+import type { GuardrailResponse } from '../../client';
 
 interface ThemeSelectionScreenProps {
-    onNext: () => void;
     onPrev: () => void;
 }
 
-const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onNext, onPrev }) => {
-    const { onboardingData, setTheme, setAddress, userLocation } = useOnboarding();
+const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onPrev }) => {
+    const { onboardingData, setTheme, suggestedThemes, isLoadingThemes, userLocation } = useOnboarding();
     const [customTheme, setCustomTheme] = useState('');
     const [showCustomInput, setShowCustomInput] = useState(false);
-    const [suggestedThemes, setSuggestedThemes] = useState<ThemeOption[]>([]);
-    const [isLoadingThemes, setIsLoadingThemes] = useState(false);
-
-    // Extract emoji and label from theme name
-    const parseThemeName = (themeName: string): { emoji: string; label: string } => {
-        // Check if theme name starts with an emoji (usually first 2-4 characters)
-        const emojiRegex = /^(\p{Emoji}+)\s*(.*)$/u;
-        const match = themeName.match(emojiRegex);
-        
-        if (match) {
-            return {
-                emoji: match[1],
-                label: match[2] || themeName
-            };
-        }
-        
-        // If no emoji found, return first character as fallback or empty
-        return {
-            emoji: themeName.charAt(0),
-            label: themeName
-        };
-    };
-
-    // Fetch theme options from API
-    useEffect(() => {
-        // Only fetch if we have user location and haven't loaded themes yet
-        if (suggestedThemes.length === 0 && !isLoadingThemes && userLocation.latitude !== null && userLocation.longitude !== null) {
-            setIsLoadingThemes(true);
-            getThemeOptionsApiV1ThemeOptionsPost({
-                body: {
-                    latitude: userLocation.latitude,
-                    longitude: userLocation.longitude,
-                    use_dummy_data: import.meta.env.VITE_USE_DUMMY_DATA === 'true'
-                } as any, // Type assertion - types.gen.ts has been updated but TypeScript may need a refresh
-                baseUrl: 'http://localhost:8000'
-            })
-            .then(response => {
-                if (response.error) {
-                    console.error('Error fetching theme options:', response.error);
-                    setSuggestedThemes([]);
-                    setIsLoadingThemes(false);
-                    return;
-                }
-                
-                const data = response.data as ThemeOptionsResponse;
-                const themes = data?.themes || {};
-                const geocodedAddress = data?.address || '';
-                
-                // Store the geocoded address in context
-                if (geocodedAddress) {
-                    setAddress(geocodedAddress);
-                }
-                
-                const parsedThemes: ThemeOption[] = Object.entries(themes).map(([themeName, description], index) => {
-                    const { emoji, label } = parseThemeName(themeName);
-                    return {
-                        id: `theme-${index}`,
-                        label: label,
-                        icon: emoji,
-                        description: description as string
-                    };
-                });
-                setSuggestedThemes(parsedThemes);
-                setIsLoadingThemes(false);
-            })
-            .catch(error => {
-                console.error('Error fetching theme options:', error);
-                setIsLoadingThemes(false);
-                // Fallback to empty themes if API fails
-                setSuggestedThemes([]);
-            });
-        }
-    }, [suggestedThemes.length, isLoadingThemes, userLocation.latitude, userLocation.longitude]);
+    const [isValidating, setIsValidating] = useState(false);
+    const navigate = useNavigate();
 
     const handleThemeSelect = (theme: string) => {
         setTheme(theme);
@@ -111,7 +33,7 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onNext, onP
         }
     };
 
-    const canProceedFromStep1 = () => {
+    const canProceedFromStep2 = () => {
         // Can proceed from theme selection only if a theme is selected
         // If theme is "custom", user must have submitted a custom theme
         if (onboardingData.theme === 'custom') {
@@ -120,9 +42,59 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onNext, onP
         return onboardingData.theme !== '' || customTheme.trim() !== '';
     };
 
+    const handleStartGeneration = async () => {
+        if (!onboardingData.theme || onboardingData.theme.trim() === '') {
+            return;
+        }
+
+        setIsValidating(true);
+
+        try {
+            // Call guardrail validation API
+            // Address should be available from theme options response
+            const userAddress = onboardingData.address || 'Singapore'; // Fallback to Singapore if not set
+            
+            const response = await guardrailValidationApiV1GuardrailPost({
+                body: {
+                    constraints: {
+                        max_time: `${onboardingData.duration}`, // Convert to string format expected by API
+                        distance: `${onboardingData.distance}`, // Convert to string format
+                        custom: onboardingData.theme,
+                        address: userAddress,
+                    },
+                },
+                baseUrl: 'http://localhost:8000',
+            });
+
+            if (response.error) {
+                console.error('Error validating tour:', response.error);
+                navigate('/error');
+                setIsValidating(false);
+                return;
+            }
+
+            const data = response.data as GuardrailResponse;
+
+            if (!data.valid) {
+                // Invalid theme, show error screen
+                navigate('/error');
+                setIsValidating(false);
+                return;
+            }
+
+            // Valid theme, navigate to tour generation page
+            navigate(`/tour/generate/${data.transaction_id}`);
+            setIsValidating(false);
+        } catch (error) {
+            console.error('Error starting tour generation:', error);
+            navigate('/error');
+            setIsValidating(false);
+        }
+    };
+
     return (
         <motion.div
-            key="step1"
+            key="step2"
             initial={{ x: 300, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -300, opacity: 0 }}
@@ -251,18 +223,27 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onNext, onP
                     Back
                 </button>
                 <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={onNext}
-                    disabled={!canProceedFromStep1()}
-                    className={`px-8 py-3 flex items-center rounded-xl font-semibold transition-all ${
-                        canProceedFromStep1()
+                    whileHover={{ scale: isValidating || !canProceedFromStep2() ? 1 : 1.05 }}
+                    whileTap={{ scale: isValidating || !canProceedFromStep2() ? 1 : 0.95 }}
+                    onClick={handleStartGeneration}
+                    disabled={isValidating || !canProceedFromStep2()}
+                    className={`px-8 py-4 flex items-center rounded-xl font-semibold transition-all ${
+                        canProceedFromStep2() && !isValidating
                             ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg hover:shadow-xl'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                 >
-                    Continue
-                    <ArrowRight className="w-5 h-5 ml-2" />
+                    {isValidating ? (
+                        <>
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                            Checking your input...
+                        </>
+                    ) : (
+                        <>
+                            Start Generating Tour
+                            <Sparkles className="w-5 h-5 ml-2" />
+                        </>
+                    )}
                 </motion.button>
             </div>
         </motion.div>

@@ -80,7 +80,7 @@ export type GeneratePoiResponse = {
     /**
      * Pois
      */
-    pois: Array<Poi>;
+    pois: Array<IntermediatePoi>;
 };
 
 /**
@@ -166,6 +166,22 @@ export type HttpValidationError = {
      * Detail
      */
     detail?: Array<ValidationError>;
+};
+
+/**
+ * IntermediatePOI
+ *
+ * Simplified POI model for intermediate representations before enrichment
+ */
+export type IntermediatePoi = {
+    /**
+     * Poi Title
+     */
+    poi_title: string;
+    /**
+     * Address
+     */
+    address: string;
 };
 
 /**
