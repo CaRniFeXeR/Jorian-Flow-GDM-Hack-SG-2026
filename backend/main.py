@@ -127,4 +127,14 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level = "debug", access_log=True)
+    # Use loop="asyncio" explicitly to ensure proper async behavior
+    # This ensures BackgroundTasks work correctly and don't block the response
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=8000, 
+        log_level="debug", 
+        access_log=True,
+        loop="asyncio",  # Explicitly use asyncio event loop for proper async support
+        workers=1  # Use single worker to ensure BackgroundTasks work correctly
+    )

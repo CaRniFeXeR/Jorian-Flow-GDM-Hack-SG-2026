@@ -9,9 +9,9 @@ class GPSLocation(BaseModel):
 
 
 class POI(BaseModel):
-    order: int = Field(..., description="Order of the POI in the tour")
+    order: Optional[int] = Field(None, description="Order of the POI in the tour")
     poi_title: Optional[str] = Field(None, description="Title of the POI")
-    google_place_id: str = Field(..., description="Google Place ID for this POI")
+    google_place_id: Optional[str] = Field(None, description="Google Place ID for this POI")
     google_place_img_url: Optional[str] = Field(None, description="Image URL from Google Places")
     address: Optional[str] = Field(None, description="Address of the POI")
     google_maps_name: Optional[str] = Field(None, description="Name from Google Maps")

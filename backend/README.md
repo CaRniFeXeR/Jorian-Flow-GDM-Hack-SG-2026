@@ -40,14 +40,23 @@ GOOGLE_MAPS_API_KEY=your_actual_google_maps_api_key_here
 
 ### 3. Run the Server
 
+**Recommended approach (for proper async/background task support):**
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Or for production:
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+**Alternative (using Python directly - may have issues with background tasks):**
 ```bash
 python main.py
 ```
 
-Or use uvicorn directly:
-```bash
-uvicorn main:app --reload
-```
+> **Note**: Using `uvicorn` CLI directly is recommended as it provides better support for FastAPI's BackgroundTasks and async operations.
 
 The API will be available at `http://localhost:8000`
 

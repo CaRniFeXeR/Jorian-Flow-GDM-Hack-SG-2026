@@ -79,7 +79,7 @@ const TourGeneration: React.FC = () => {
 
         const messageInterval = setInterval(() => {
             setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
-        }, 2000);
+        }, 5000);
 
         return () => clearInterval(messageInterval);
     }, [isPolling]);

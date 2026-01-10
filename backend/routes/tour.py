@@ -30,18 +30,21 @@ async def process_tour_generation_background(
     user_address: str,
     max_time: str,
     distance: str,
-    custom_message: str
+    custom_message: str,
+    is_valid: bool,
+    constraints: Dict
 ):
     """
     Background task to automatically generate a complete tour after guardrail validation.
 
     This function orchestrates the following steps:
-    1. Geocode user address to coordinates
-    2. Generate POIs based on constraints
-    3. Filter/verify POIs using Google Maps
-    4. Order POIs optimally and enrich with details
-    5. Generate tour introduction
-    6. Generate narrative stories for each POI
+    1. Create tour record in database (first operation to ensure it exists)
+    2. Geocode user address to coordinates
+    3. Generate POIs based on constraints
+    4. Filter/verify POIs using Google Maps
+    5. Order POIs optimally and enrich with details
+    6. Generate tour introduction
+    7. Generate narrative stories for each POI
 
     Args:
         transaction_id: UUID of the tour
@@ -49,15 +52,34 @@ async def process_tour_generation_background(
         max_time: Maximum time constraint
         distance: Maximum distance constraint
         custom_message: User's custom preferences/theme
+        is_valid: Whether guardrail validation passed
+        constraints: Full constraints dictionary
     """
     try:
-        await tour_orchestration_service.process_tour_generation(
+        # First, create the tour record in the database
+        # This ensures it exists before any subsequent operations try to read it
+        tour_service.create_tour(
             transaction_id=transaction_id,
             user_address=user_address,
+            theme=custom_message,
+            status_code="valid" if is_valid else "invalid",
             max_time=max_time,
             distance=distance,
-            custom_message=custom_message
+            constraints=constraints
         )
+        logger.info(f"📝 Tour record created for {transaction_id}")
+
+        # Only proceed with tour generation if validation passed
+        if is_valid:
+            await tour_orchestration_service.process_tour_generation(
+                transaction_id=transaction_id,
+                user_address=user_address,
+                max_time=max_time,
+                distance=distance,
+                custom_message=custom_message
+            )
+        else:
+            logger.info(f"⏭️ Skipping tour generation for {transaction_id} - validation failed")
     except Exception as e:
         logger.error(f"❌ Error in background tour generation for {transaction_id}: {str(e)}")
         logger.exception(e)
@@ -586,31 +608,27 @@ async def guardrail_validation(request: GuardrailRequest, background_tasks: Back
             custom_message=request.constraints.custom
         )
 
-        # Store in tours table
-        tour_service.create_tour(
+        # Prepare constraints dictionary for background task
+        constraints_dict = request.constraints.model_dump()
+
+        # Always add background task - it will create the tour record and generate if valid
+        # FastAPI background tasks run AFTER the response is sent, ensuring truly async behavior
+        # This allows us to return the HTTP response immediately without waiting for database writes
+        logger.info(f"✅ Guardrail {'passed' if is_valid else 'failed'} for {transaction_id}, scheduling background processing")
+        background_tasks.add_task(
+            process_tour_generation_background,
             transaction_id=transaction_id,
             user_address=user_address,
-            theme=request.constraints.custom,
-            status_code="valid" if is_valid else "invalid",
             max_time=request.constraints.max_time,
             distance=request.constraints.distance,
-            constraints=request.constraints.model_dump()
+            custom_message=request.constraints.custom,
+            is_valid=is_valid,
+            constraints=constraints_dict
         )
 
-        # If validation passed, start background tour generation process
-        if is_valid:
-            logger.info(f"✅ Guardrail passed, starting background tour generation for {transaction_id}")
-            background_tasks.add_task(
-                process_tour_generation_background,
-                transaction_id=transaction_id,
-                user_address=user_address,
-                max_time=request.constraints.max_time,
-                distance=request.constraints.distance,
-                custom_message=request.constraints.custom
-            )
-        else:
-            logger.info(f"❌ Guardrail failed for {transaction_id}, skipping tour generation")
-
+        # Return response immediately - background task will handle database write and tour generation
+        # This ensures the HTTP response is sent immediately after validation, with all heavy work
+        # happening asynchronously in the background
         return GuardrailResponse(
             transaction_id=transaction_id,
             valid=is_valid

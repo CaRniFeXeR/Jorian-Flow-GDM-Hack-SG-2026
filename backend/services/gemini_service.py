@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 import google.generativeai as genai
 from typing import Dict, List, Optional
 from services.maps_service import get_address_from_coordinates
@@ -308,8 +309,10 @@ Return your answer in this EXACT JSON format, nothing else:
 IMPORTANT: Return ONLY the JSON object, no additional text."""
 
     try:
-        # Generate content
-        response = model.generate_content(prompt)
+        # Generate content - run in thread executor to avoid blocking the event loop
+        # This ensures FastAPI can handle other requests and send responses properly
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(None, model.generate_content, prompt)
 
         # Extract the response text
         response_text = response.text.strip()
