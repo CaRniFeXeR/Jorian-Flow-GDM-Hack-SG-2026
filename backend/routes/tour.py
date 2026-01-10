@@ -246,17 +246,18 @@ class ThemeOptionsRequest(BaseModel):
 
 
 class ThemeOptionsResponse(BaseModel):
-    themes: Dict[str, str]
+    themes: List[str]
     address: str
 
     class Config:
         json_schema_extra = {
             "example": {
-                "themes": {
-                    "Historical Heritage Tour": "Explore the colonial architecture and historical landmarks along this iconic street",
-                    "Shopping & Fashion Tour": "Discover luxury brands and modern shopping centers in Singapore's premier retail district",
-                    "Cultural Fusion Tour": "Experience the blend of traditional and contemporary Asian culture"
-                },
+                "themes": [
+                    "🏛️ Historical Heritage Walk",
+                    "🛍️ Shopping & Fashion Tour",
+                    "🎨 Cultural Fusion Experience",
+                    "🍜 Foodie's Paradise Tour"
+                ],
                 "address": "Orchard Road, Singapore"
             }
         }
@@ -488,11 +489,12 @@ async def get_theme_options(request: ThemeOptionsRequest):
         
         if request.use_dummy_data:
             return ThemeOptionsResponse(
-                themes={
-                    "🏛️ Historical Heritage Tour": "Explore the colonial architecture and historical landmarks along this iconic street",
-                    "🛍️ Shopping & Fashion Tour": "Discover luxury brands and modern shopping centers in Singapore's premier retail district",
-                    "🎨 Cultural Fusion Tour": "Experience the blend of traditional and contemporary Asian culture"
-                },
+                themes=[
+                    "🏛️ Historical Heritage Walk",
+                    "🛍️ Shopping & Fashion Tour",
+                    "🎨 Cultural Fusion Experience",
+                    "🍜 Foodie's Paradise Tour"
+                ],
                 address=geocoded_address or "Orchard Road, Singapore"
             )
 
@@ -680,12 +682,13 @@ async def guardrail_validation(request: GuardrailRequest, background_tasks: Back
         # Prepare tour data for database (address is now part of constraints)
         tour_data = {
             "id": transaction_id,
+            "user_address": user_address,
             "theme": request.constraints.custom,
             "status_code": "valid" if is_valid else "invalid",
             "max_distance_km": parse_distance_to_km(request.constraints.distance),
             "max_duration_minutes": parse_time_to_minutes(request.constraints.max_time),
             "pois": [],
-            "storyline_keywords": user_address,
+            "storyline_keywords": "",
             "constraints": request.constraints.model_dump()  # This now includes address
         }
 
@@ -756,7 +759,7 @@ async def generate_tour(request: GenerateTourRequest):
             )
 
         # Get the user address from the tour
-        user_address = tour_data.get('storyline_keywords', '')
+        user_address = tour_data.get('user_address', '')
         
         # Retrieve constraints from tour data
         constraints = tour_data.get('constraints', {})
