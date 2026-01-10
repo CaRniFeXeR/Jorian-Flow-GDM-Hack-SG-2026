@@ -208,3 +208,4 @@ __marimo__/
 
 # custom
 backend/myenv/*
+backend/database/db.json
