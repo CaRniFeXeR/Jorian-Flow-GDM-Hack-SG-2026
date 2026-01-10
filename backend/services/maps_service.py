@@ -47,6 +47,49 @@ def get_address_from_coordinates(latitude: float, longitude: float) -> str:
         raise Exception(f"Error during reverse geocoding: {str(e)}")
 
 
+def get_coordinates_from_address(address: str) -> tuple:
+    """
+    Convert an address to latitude and longitude coordinates using Google Maps Geocoding API.
+
+    Args:
+        address: The address to geocode
+
+    Returns:
+        Tuple of (latitude, longitude)
+
+    Raises:
+        ValueError: If API key is not found or address cannot be geocoded
+        Exception: If geocoding fails
+    """
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        raise ValueError("GOOGLE_MAPS_API_KEY not found in environment variables")
+
+    try:
+        gmaps = googlemaps.Client(key=api_key)
+
+        # Perform geocoding
+        result = gmaps.geocode(address)  # type: ignore[attr-defined]
+
+        if not result or len(result) == 0:
+            raise ValueError(f"No coordinates found for address: {address}")
+
+        # Get the location from the first result
+        location = result[0].get('geometry', {}).get('location', {})
+        latitude = location.get('lat')
+        longitude = location.get('lng')
+
+        if latitude is None or longitude is None:
+            raise ValueError(f"Could not extract coordinates from geocoding result for: {address}")
+
+        return (latitude, longitude)
+
+    except googlemaps.exceptions.ApiError as e:
+        raise Exception(f"Google Maps API error: {str(e)}")
+    except Exception as e:
+        raise Exception(f"Error during geocoding: {str(e)}")
+
+
 def get_detailed_location_info(latitude: float, longitude: float) -> dict:
     """
     Get detailed location information including address components.
@@ -247,7 +290,7 @@ def get_place_details(poi_title: str, address: str) -> Optional[Dict]:
         try:
             place_result = gmaps.place(  # type: ignore[attr-defined]
                 place_id,
-                fields=["place_id", "name", "formatted_address", "geometry", "photos"]
+                fields=["place_id", "name", "formatted_address", "geometry", "photo"]
             )
             
             # Extract GPS location and photo from place result if available
@@ -280,7 +323,7 @@ def get_place_details(poi_title: str, address: str) -> Optional[Dict]:
             # Fallback if place method doesn't exist or fails - use geocoding on formatted_address
             print(f"⚠️  Place details API call failed, using geocoding fallback: {str(e)}")
             try:
-                geocode_result = gmaps.geocode(candidate.get('formatted_address', poi_address))  # type: ignore[attr-defined]
+                geocode_result = gmaps.geocode(candidate.get('formatted_address', address))  # type: ignore[attr-defined]
                 if geocode_result and len(geocode_result) > 0:
                     geometry = geocode_result[0].get('geometry', {})
                     location = geometry.get('location', {})
