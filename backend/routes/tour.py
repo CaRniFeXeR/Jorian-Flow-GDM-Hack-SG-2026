@@ -191,7 +191,7 @@ def _enrich_poi_with_details(ordered_poi: Dict) -> Dict:
 
     Args:
         ordered_poi: Dictionary containing POI information with keys:
-                     'poi_title', 'poi_address', 'order'
+                     'poi_title', 'poi_address', 'order', 'story_keywords'
 
     Returns:
         Dictionary with enriched POI data including Google Maps details
@@ -199,6 +199,7 @@ def _enrich_poi_with_details(ordered_poi: Dict) -> Dict:
     poi_title = ordered_poi.get('poi_title', '')
     poi_address = ordered_poi.get('poi_address', '')
     order = ordered_poi.get('order', 0)
+    story_keywords = ordered_poi.get('story_keywords', None)
 
     # Get Google Maps details
     place_details = get_place_details(poi_title, poi_address)
@@ -215,7 +216,7 @@ def _enrich_poi_with_details(ordered_poi: Dict) -> Dict:
             "google_maps_name": place_details.get('google_maps_name', poi_title),
             "story": None,
             "pin_image_url": None,
-            "story_keywords": None,
+            "story_keywords": story_keywords,
             "gps_location": gps_location if gps_location else None
         }
     else:
@@ -227,7 +228,7 @@ def _enrich_poi_with_details(ordered_poi: Dict) -> Dict:
             "google_maps_name": poi_title,
             "story": None,
             "pin_image_url": None,
-            "story_keywords": None,
+            "story_keywords": story_keywords,
             "gps_location": None
         }
 
