@@ -197,6 +197,8 @@ class TourOrchestrationService:
         1. Generate POIs based on constraints
         2. Filter/verify POIs using Google Maps
         3. Order POIs optimally and enrich with details
+        4. Generate tour introduction
+        5. Generate narrative stories for each POI
 
         Args:
             transaction_id: UUID of the tour
@@ -239,8 +241,32 @@ class TourOrchestrationService:
             # Step 5: Enrich POIs with Google Maps details
             enriched_pois = self.poi_service.enrich_pois_with_details(ordered_pois)
 
-            # Step 6: Finalize tour
-            self.tour_service.finalize_tour(transaction_id, enriched_pois)
+            # Step 6: Generate introduction for the tour
+            logger.info(f"📝 Generating tour introduction...")
+            from services.gemini_service import generate_tour_introduction
+            introduction = await generate_tour_introduction(
+                pois=enriched_pois,
+                user_custom_info=theme
+            )
+            
+            # Update tour with introduction
+            self.tour_service.tour_repo.update_tour_by_uuid(
+                tour_uuid=transaction_id,
+                updates={"introduction": introduction}
+            )
+            logger.info(f"✅ Introduction generated: {introduction[:50]}...")
+
+            # Step 7: Generate narrative stories for each POI
+            logger.info(f"📖 Generating narrative stories for POIs...")
+            from services.gemini_service import generate_narrative_stories
+            pois_with_stories = await generate_narrative_stories(
+                pois=enriched_pois,
+                user_custom_info=theme
+            )
+            logger.info(f"✅ Stories generated for {len(pois_with_stories)} POIs")
+
+            # Step 8: Finalize tour with stories
+            self.tour_service.finalize_tour(transaction_id, pois_with_stories)
 
         except ValueError as e:
             # Handle validation errors (e.g., no POIs verified)
