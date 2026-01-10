@@ -401,6 +401,8 @@ Please determine the most efficient order to visit these POIs considering:
 5. Creating a good tour experience (avoid excessive backtracking)
 6. Ensure the route forms a logical loop that returns to the starting address
 
+For each POI, also generate story keywords (3-5 comma-separated keywords) that capture the essence of this POI and how it relates to the tour theme.
+
 Return your answer in this EXACT JSON format, nothing else:
 {{
     "ordered_pois": [
@@ -409,21 +411,24 @@ Return your answer in this EXACT JSON format, nothing else:
             "poi_title": "POI Title",
             "poi_address": "POI Address",
             "order": 1,
-            "reasoning": "Brief reason for this position"
+            "story_keywords": "keyword1, keyword2, keyword3",
+            "reasoning": "Brief reason for this position in the tour"
         }},
         {{
             "original_index": 2,
             "poi_title": "POI Title",
             "poi_address": "POI Address",
             "order": 2,
-            "reasoning": "Brief reason for this position"
+            "story_keywords": "keyword1, keyword2, keyword3",
+            "reasoning": "Brief reason for this position in the tour"
         }}
     ]
 }}
 
-IMPORTANT: 
+IMPORTANT:
 - Use the original_index to match POIs from the input list (starting from 1)
 - The "order" field should be the sequence in the tour (1 = first stop, 2 = second stop, etc.)
+- The "story_keywords" should be comma-separated descriptive keywords that relate the POI to the tour theme
 - Return ONLY the JSON object, no additional text."""
 
     try:
