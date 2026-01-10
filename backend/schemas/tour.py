@@ -41,13 +41,14 @@ class POI(BaseModel):
 
 class Tour(BaseModel):
     id: UUID = Field(..., description="Unique identifier for the tour")
+    user_address: str = Field(..., description="User's starting location address")
     theme: str = Field(..., description="Theme of the tour")
     status_code: str = Field(..., description="Status code of the tour")
     max_distance_km: float = Field(..., description="Maximum distance in kilometers")
     max_duration_minutes: int = Field(..., description="Maximum duration in minutes")
     introduction: str = Field(..., description="Introduction text for the tour")
     pois: List[POI] = Field(default_factory=list, description="List of Points of Interest")
-    storyline_keywords: str = Field(..., description="Keywords for the tour storyline")
+    storyline_keywords: Optional[str] = Field(None, description="Keywords for the tour storyline")
     constraints: Optional[Dict[str, Any]] = Field(None, description="Constraints used for the tour")
     filtered_candidate_poi_list: Optional[List[POI]] = Field(None, description="List of candidate POIs after filtering")
 
@@ -55,6 +56,7 @@ class Tour(BaseModel):
         json_schema_extra = {
             "example": {
                 "id": "123e4567-e89b-12d3-a456-426614174000",
+                "user_address": "Orchard Road, Singapore",
                 "theme": "Historical Heritage Tour",
                 "status_code": "active",
                 "max_distance_km": 5.0,
@@ -76,11 +78,12 @@ class Tour(BaseModel):
                         }
                     }
                 ],
-                "storyline_keywords": "history, architecture, culture",
+                "storyline_keywords": "",
                 "constraints": {
                     "max_time": "3 hours",
                     "distance": "10 km",
-                    "custom": "I want a chicken rice food tour"
+                    "custom": "I want a chicken rice food tour",
+                    "address": "Orchard Road, Singapore"
                 },
                 "filtered_candidate_poi_list": [
                      {

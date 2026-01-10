@@ -15,36 +15,35 @@ def get_prompt_template(address: str) -> str:
     Returns:
         Formatted prompt string
     """
-    prompt = f"""You are a creative tour guide and travel expert. Given a location address, generate 5 unique and engaging thematic tour options that visitors could experience at or near this location.
+    prompt = f"""You are a creative tour guide and travel expert. Given a location address, generate 4 unique and engaging thematic tour options that visitors could experience at or near this location.
 
 Location Address: {address}
 
-Please analyze this location and suggest 5 different thematic tour options. Each theme should be creative, specific to the location's characteristics, and appeal to different types of travelers.
+Please analyze this location and suggest 4 different thematic tour options. Each theme should be creative, specific to the location's characteristics, and appeal to different types of travelers.
 
-IMPORTANT: Return ONLY a valid JSON object with the following structure, nothing else:
-{{
-    "theme_name_1": "A one-line engaging summary of what this tour offers",
-    "theme_name_2": "A one-line engaging summary of what this tour offers",
-    "theme_name_3": "A one-line engaging summary of what this tour offers",
-    "theme_name_4": "A one-line engaging summary of what this tour offers",
-    "theme_name_5": "A one-line engaging summary of what this tour offers"
-}}
+IMPORTANT: Return ONLY a valid JSON array with the following structure, nothing else:
+[
+    "Theme Name 1",
+    "Theme Name 2",
+    "Theme Name 3",
+    "Theme Name 4"
+]
 
 Guidelines:
 - Each theme name MUST start with a relevant emoji that represents the theme (e.g., "🏛️ Historical Heritage Walk", "🍜 Foodie's Paradise Tour", "🏗️ Architectural Marvels")
-- Make theme names catchy and descriptive
-- Keep summaries to one engaging sentence (max 20 words)
+- Make theme names catchy and descriptive (just the name, no additional description)
+- Keep theme names concise but engaging (3-5 words)
 - Consider the location's history, culture, food, architecture, nature, shopping, nightlife, and local experiences
 - Make each theme distinct and appealing to different traveler interests
-- Ensure the JSON is properly formatted with double quotes
+- Ensure the JSON array is properly formatted with double quotes
 - Choose emojis that are relevant and help visualize the theme at a glance
 
-Return ONLY the JSON object, no additional text or explanation."""
+Return ONLY the JSON array, no additional text or explanation."""
 
     return prompt
 
 
-async def generate_theme_options(address: Optional[str] = None, latitude: Optional[float] = None, longitude: Optional[float] = None) -> Dict[str, str]:
+async def generate_theme_options(address: Optional[str] = None, latitude: Optional[float] = None, longitude: Optional[float] = None) -> List[str]:
     """
     Generate thematic tour options using Gemini API.
 
@@ -54,7 +53,7 @@ async def generate_theme_options(address: Optional[str] = None, latitude: Option
         longitude: Longitude coordinate (optional if address provided)
 
     Returns:
-        Dictionary mapping theme names to their descriptions
+        List of theme names (max 4 themes)
 
     Raises:
         ValueError: If neither address nor coordinates are provided
@@ -107,6 +106,14 @@ async def generate_theme_options(address: Optional[str] = None, latitude: Option
 
         # Parse JSON response
         themes = json.loads(response_text)
+
+        # Validate that it's a list
+        if not isinstance(themes, list):
+            raise Exception("Expected a list of theme names from Gemini API")
+
+        # Validate that we have themes
+        if len(themes) == 0:
+            raise Exception("No themes returned from Gemini API")
 
         return themes
 
