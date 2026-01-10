@@ -149,14 +149,14 @@ Please generate a list of POIs that match these constraints. Consider the time n
 
 IMPORTANT: Return ONLY a valid JSON array with the following structure, nothing else:
 [
-    {{
-        "poi_title": "Name of the POI",
-        "address": "Full address of the POI"
-    }},
-    {{
-        "poi_title": "Name of the POI",
-        "address": "Full address of the POI"
-    }}
+    {
+        "poi_title": "15 Yarwood Avenue",
+        "address": "15 Yarwood Ave, Singapore 587987"
+    },
+    {
+        "poi_title": "Block 123 Ang Mo Kio Avenue 3",
+        "address": "123 Ang Mo Kio Ave 3, Singapore 560123"
+    }
 ]
 
 Guidelines:

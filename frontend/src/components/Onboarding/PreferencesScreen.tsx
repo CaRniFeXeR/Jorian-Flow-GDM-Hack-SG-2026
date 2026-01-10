@@ -1,19 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Sparkles } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useOnboarding } from '../../context/OnboardingContext';
-import { guardrailValidationApiV1GuardrailPost } from '../../client';
-import type { GuardrailResponse } from '../../client';
 
 interface PreferencesScreenProps {
     onPrev: () => void;
+    onNext: () => void;
 }
 
-const PreferencesScreen: React.FC<PreferencesScreenProps> = ({ onPrev }) => {
+const PreferencesScreen: React.FC<PreferencesScreenProps> = ({ onPrev, onNext }) => {
     const { onboardingData, setDuration, setDistance } = useOnboarding();
-    const [isValidating, setIsValidating] = useState(false);
-    const navigate = useNavigate();
 
     const formatDuration = (minutes: number): string => {
         if (minutes < 60) {
@@ -31,73 +27,15 @@ const PreferencesScreen: React.FC<PreferencesScreenProps> = ({ onPrev }) => {
         return `${km} km`;
     };
 
-    const handleStartGeneration = async () => {
-        if (!onboardingData.theme || onboardingData.theme.trim() === '') {
-            return;
-        }
-
-        setIsValidating(true);
-
-        try {
-            // Call guardrail validation API
-            // Address should be available from theme options response
-            const userAddress = onboardingData.address || 'Singapore'; // Fallback to Singapore if not set
-            
-            const response = await guardrailValidationApiV1GuardrailPost({
-                body: {
-                    constraints: {
-                        max_time: `${onboardingData.duration}`, // Convert to string format expected by API
-                        distance: `${onboardingData.distance}`, // Convert to string format
-                        custom: onboardingData.theme,
-                        address: userAddress,
-                    },
-                },
-                baseUrl: 'http://localhost:8000',
-            });
-
-            if (response.error) {
-                console.error('Error validating tour:', response.error);
-                navigate('/error');
-                setIsValidating(false);
-                return;
-            }
-
-            const data = response.data as GuardrailResponse;
-
-            if (!data.valid) {
-                // Invalid theme, show error screen
-                navigate('/error');
-                setIsValidating(false);
-                return;
-            }
-
-            // Valid theme, navigate to tour generation page
-            navigate(`/tour/generate/${data.transaction_id}`);
-            setIsValidating(false);
-        } catch (error) {
-            console.error('Error starting tour generation:', error);
-            navigate('/error');
-            setIsValidating(false);
-        }
-    };
-
     return (
         <motion.div
-            key="step2"
+            key="step1"
             initial={{ x: 300, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -300, opacity: 0 }}
             transition={{ duration: 0.3 }}
             className="max-w-2xl mx-auto"
         >
-            {/* Back button */}
-            <button
-                onClick={onPrev}
-                className="mb-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Go back"
-            >
-                <ArrowLeft className="w-5 h-5" />
-            </button>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
                 Customize your tour
             </h2>
@@ -162,27 +100,24 @@ const PreferencesScreen: React.FC<PreferencesScreenProps> = ({ onPrev }) => {
             </div>
 
             {/* Navigation */}
-            <motion.button
-                whileHover={{ scale: isValidating ? 1 : 1.05 }}
-                whileTap={{ scale: isValidating ? 1 : 0.95 }}
-                onClick={handleStartGeneration}
-                disabled={isValidating}
-                className={`w-full px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center ${
-                    isValidating ? 'opacity-75 cursor-not-allowed' : ''
-                }`}
-            >
-                {isValidating ? (
-                    <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Checking your input...
-                    </>
-                ) : (
-                    <>
-                        Start Generating Tour
-                        <Sparkles className="w-5 h-5 ml-2" />
-                    </>
-                )}
-            </motion.button>
+            <div className="flex justify-between mt-8">
+                <button
+                    onClick={onPrev}
+                    className="px-6 py-3 flex items-center text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                >
+                    <ArrowLeft className="w-5 h-5 mr-2" />
+                    Back
+                </button>
+                <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={onNext}
+                    className="px-8 py-3 flex items-center bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                >
+                    Continue
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                </motion.button>
+            </div>
         </motion.div>
     );
 };

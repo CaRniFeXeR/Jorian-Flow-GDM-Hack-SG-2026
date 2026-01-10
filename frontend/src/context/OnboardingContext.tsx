@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useRef } from 'react';
+import { getThemeOptionsApiV1ThemeOptionsPost } from '../client';
+import type { ThemeOptionsResponse } from '../client';
 
 export interface OnboardingData {
     theme: string;
@@ -12,11 +14,20 @@ export interface UserLocation {
     longitude: number | null;
 }
 
+export interface ThemeOption {
+    id: string;
+    label: string;
+    icon: string;
+    description: string;
+}
+
 interface OnboardingContextType {
     isOnboarding: boolean;
     onboardingStep: number;
     onboardingData: OnboardingData;
     userLocation: UserLocation;
+    suggestedThemes: ThemeOption[];
+    isLoadingThemes: boolean;
     startOnboarding: () => void;
     nextStep: () => void;
     prevStep: () => void;
@@ -25,6 +36,7 @@ interface OnboardingContextType {
     setDistance: (distance: number) => void;
     setAddress: (address: string) => void;
     setUserLocation: (location: UserLocation) => void;
+    fetchThemes: () => Promise<void>;
     completeOnboarding: () => void;
 }
 
@@ -42,6 +54,9 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const [onboardingStep, setOnboardingStep] = useState(0);
     const [onboardingData, setOnboardingData] = useState<OnboardingData>(defaultOnboardingData);
     const [userLocation, setUserLocation] = useState<UserLocation>({ latitude: null, longitude: null });
+    const [suggestedThemes, setSuggestedThemes] = useState<ThemeOption[]>([]);
+    const [isLoadingThemes, setIsLoadingThemes] = useState(false);
+    const fetchingThemesRef = useRef(false);
 
     const startOnboarding = () => {
         setIsOnboarding(true);
@@ -76,6 +91,92 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setUserLocation(location);
     };
 
+    const fetchThemes = async () => {
+        // Don't fetch if already fetching (use ref to prevent race conditions)
+        if (fetchingThemesRef.current) {
+            return;
+        }
+
+        // Don't fetch if themes are already loaded (check state)
+        if (suggestedThemes.length > 0) {
+            return;
+        }
+
+        // Don't fetch if we don't have user location
+        if (userLocation.latitude === null || userLocation.longitude === null) {
+            console.warn('Cannot fetch themes: user location not available');
+            return;
+        }
+
+        // Mark as fetching and set loading state
+        fetchingThemesRef.current = true;
+        setIsLoadingThemes(true);
+
+        try {
+            const response = await getThemeOptionsApiV1ThemeOptionsPost({
+                body: {
+                    latitude: userLocation.latitude,
+                    longitude: userLocation.longitude,
+                    use_dummy_data: import.meta.env.VITE_USE_DUMMY_DATA === 'true'
+                },
+                baseUrl: 'http://localhost:8000'
+            });
+
+            if (response.error) {
+                console.error('Error fetching theme options:', response.error);
+                setSuggestedThemes([]);
+                setIsLoadingThemes(false);
+                return;
+            }
+
+            const data = response.data as ThemeOptionsResponse;
+            const themes = data?.themes || {};
+            const geocodedAddress = data?.address || '';
+
+            // Store the geocoded address in context
+            if (geocodedAddress) {
+                setAddress(geocodedAddress);
+            }
+
+            // Parse theme names to extract emoji and label
+            const parseThemeName = (themeName: string): { emoji: string; label: string } => {
+                const emojiRegex = /^(\p{Emoji}+)\s*(.*)$/u;
+                const match = themeName.match(emojiRegex);
+                
+                if (match) {
+                    return {
+                        emoji: match[1],
+                        label: match[2] || themeName
+                    };
+                }
+                
+                return {
+                    emoji: themeName.charAt(0),
+                    label: themeName
+                };
+            };
+
+            const parsedThemes: ThemeOption[] = Object.entries(themes).map(([themeName, description], index) => {
+                const { emoji, label } = parseThemeName(themeName);
+                return {
+                    id: `theme-${index}`,
+                    label: label,
+                    icon: emoji,
+                    description: description as string
+                };
+            });
+
+            setSuggestedThemes(parsedThemes);
+            setIsLoadingThemes(false);
+            fetchingThemesRef.current = false;
+        } catch (error) {
+            console.error('Error fetching theme options:', error);
+            setSuggestedThemes([]);
+            setIsLoadingThemes(false);
+            fetchingThemesRef.current = false;
+        }
+    };
+
     const completeOnboarding = () => {
         setIsOnboarding(false);
         // Here you would typically trigger tour generation with onboardingData
@@ -87,6 +188,8 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         onboardingStep,
         onboardingData,
         userLocation,
+        suggestedThemes,
+        isLoadingThemes,
         startOnboarding,
         nextStep,
         prevStep,
@@ -95,6 +198,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setDistance,
         setAddress,
         setUserLocation: setUserLocationState,
+        fetchThemes,
         completeOnboarding,
     };
 

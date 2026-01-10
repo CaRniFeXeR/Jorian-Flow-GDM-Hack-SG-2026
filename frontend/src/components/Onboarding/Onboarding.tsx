@@ -7,16 +7,36 @@ import ThemeSelectionScreen from './ThemeSelectionScreen';
 import PreferencesScreen from './PreferencesScreen';
 
 const Onboarding: React.FC = () => {
-    const { onboardingStep, nextStep, prevStep, setUserLocation, userLocation } = useOnboarding();
+    const { onboardingStep, nextStep, prevStep, setUserLocation, userLocation, fetchThemes, suggestedThemes, isLoadingThemes } = useOnboarding();
     const [direction, setDirection] = useState(0);
 
-    // Watch user's precise location
+    // Get user's precise location early (on welcome screen)
     useEffect(() => {
         if (!navigator.geolocation) {
             console.warn('Geolocation is not supported by this browser.');
             return;
         }
 
+        const geoOptions = {
+            enableHighAccuracy: true, // Request precise location
+            timeout: 10000,
+            maximumAge: 0 // Don't use cached location
+        };
+
+        // First, get current position immediately
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                setUserLocation({ latitude, longitude });
+                console.log('User location obtained:', { latitude, longitude });
+            },
+            (error) => {
+                console.error('Error getting initial user location:', error);
+            },
+            geoOptions
+        );
+
+        // Then watch for position updates
         const watchId = navigator.geolocation.watchPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
@@ -24,14 +44,9 @@ const Onboarding: React.FC = () => {
                 console.log('User location updated:', { latitude, longitude });
             },
             (error) => {
-                console.error('Error getting user location:', error);
-                // You might want to set a default location or show an error message
+                console.error('Error watching user location:', error);
             },
-            {
-                enableHighAccuracy: true, // Request precise location
-                timeout: 10000,
-                maximumAge: 0 // Don't use cached location
-            }
+            geoOptions
         );
 
         // Cleanup: stop watching when component unmounts
@@ -39,6 +54,20 @@ const Onboarding: React.FC = () => {
             navigator.geolocation.clearWatch(watchId);
         };
     }, [setUserLocation]);
+
+    // Trigger theme fetching when location becomes available (if not already fetched)
+    useEffect(() => {
+        if (userLocation.latitude !== null && 
+            userLocation.longitude !== null && 
+            suggestedThemes.length === 0 && 
+            !isLoadingThemes &&
+            onboardingStep > 0) { // Only if we're past the welcome screen
+            // Themes weren't fetched on "Get Started" click, fetch them now
+            fetchThemes().catch(error => {
+                console.error('Error fetching themes when location became available:', error);
+            });
+        }
+    }, [userLocation.latitude, userLocation.longitude, suggestedThemes.length, isLoadingThemes, onboardingStep, fetchThemes]);
 
     const handleNext = () => {
         setDirection(1);
@@ -72,10 +101,10 @@ const Onboarding: React.FC = () => {
                             <WelcomeScreen key="step0" onNext={handleNext} />
                         )}
                         {onboardingStep === 1 && (
-                            <ThemeSelectionScreen key="step1" onNext={handleNext} onPrev={handlePrev} />
+                            <PreferencesScreen key="step1" onPrev={handlePrev} onNext={handleNext} />
                         )}
                         {onboardingStep === 2 && (
-                            <PreferencesScreen key="step2" onPrev={handlePrev} />
+                            <ThemeSelectionScreen key="step2" onPrev={handlePrev} />
                         )}
                     </AnimatePresence>
                 </div>
