@@ -3,11 +3,13 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 
+class GPSLocation(BaseModel):
+    lat: float = Field(..., description="Latitude coordinate")
+    lng: float = Field(..., description="Longitude coordinate")
+
+
 class POI(BaseModel):
     order: int = Field(..., description="Order of the POI in the tour")
-    filtered_candidate_poi_list: Optional[List[str]] = Field(
-        None, description="List of filtered candidate POIs"
-    )
     poi_title: Optional[str] = Field(None, description="Title of the POI")
     google_place_id: str = Field(..., description="Google Place ID for this POI")
     google_place_img_url: Optional[str] = Field(None, description="Image URL from Google Places")
@@ -16,6 +18,7 @@ class POI(BaseModel):
     story: Optional[str] = Field(None, description="Story or description for this POI")
     pin_image_url: Optional[str] = Field(None, description="URL for the pin image")
     story_keywords: Optional[str] = Field(None, description="Keywords related to the story")
+    gps_location: Optional[GPSLocation] = Field(None, description="GPS location with latitude and longitude")
 
     class Config:
         json_schema_extra = {
@@ -27,7 +30,11 @@ class POI(BaseModel):
                 "google_maps_name": "Singapore Botanic Gardens",
                 "story": "A beautiful botanical garden with rich history",
                 "pin_image_url": "https://example.com/pin.png",
-                "story_keywords": "nature, history, gardens"
+                "story_keywords": "nature, history, gardens",
+                "gps_location": {
+                    "lat": 1.3147,
+                    "lng": 103.8159
+                }
             }
         }
 
@@ -62,7 +69,11 @@ class Tour(BaseModel):
                         "google_maps_name": "Singapore Botanic Gardens",
                         "story": "A beautiful botanical garden",
                         "pin_image_url": "https://example.com/pin.png",
-                        "story_keywords": "nature, history"
+                        "story_keywords": "nature, history",
+                        "gps_location": {
+                            "lat": 1.3147,
+                            "lng": 103.8159
+                        }
                     }
                 ],
                 "storyline_keywords": "history, architecture, culture",
@@ -80,7 +91,11 @@ class Tour(BaseModel):
                         "google_maps_name": "Singapore Botanic Gardens",
                         "story": "A beautiful botanical garden",
                         "pin_image_url": "https://example.com/pin.png",
-                        "story_keywords": "nature, history"
+                        "story_keywords": "nature, history",
+                        "gps_location": {
+                            "lat": 1.3147,
+                            "lng": 103.8159
+                        }
                     }
                 ]
             }

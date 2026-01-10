@@ -21,70 +21,26 @@ const MapContent = ({ showTourContent = true, pois }: MapContentProps) => {
     const [userPosition] = useState({ lat: 1.2865, lng: 103.8540 });
     const [poiPositions, setPoiPositions] = useState<Map<string, { lat: number; lng: number }>>(new Map());
 
-    // Convert POIs to positions using Google Geocoding
+    // Convert POIs to positions using GPS location directly from POI
     useEffect(() => {
-        if (!pois || pois.length === 0 || !window.google || !map) return;
+        if (!pois || pois.length === 0 || !map) return;
 
-        const geocoder = new google.maps.Geocoder();
         const positionsMap = new Map<string, { lat: number; lng: number }>();
 
-        // Create a dummy div for PlacesService (it requires a DOM element)
-        const dummyDiv = document.createElement('div');
-
-        const geocodePois = async () => {
-            for (const poi of pois) {
-                if (poi.google_place_id) {
-                    // Use place_id if available
-                    try {
-                        const service = new google.maps.places.PlacesService(dummyDiv);
-                        service.getDetails(
-                            {
-                                placeId: poi.google_place_id,
-                                fields: ['geometry'],
-                            },
-                            (place, status) => {
-                                if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
-                                    positionsMap.set(poi.google_place_id, {
-                                        lat: place.geometry.location.lat(),
-                                        lng: place.geometry.location.lng(),
-                                    });
-                                    setPoiPositions(new Map(positionsMap));
-                                }
-                            }
-                        );
-                    } catch (error) {
-                        console.error('Error getting place details:', error);
-                        // Fallback to geocoding address if place details fail
-                        if (poi.address) {
-                            geocoder.geocode({ address: poi.address }, (results, status) => {
-                                if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
-                                    const location = results[0].geometry.location;
-                                    positionsMap.set(poi.google_place_id || poi.address || '', {
-                                        lat: location.lat(),
-                                        lng: location.lng(),
-                                    });
-                                    setPoiPositions(new Map(positionsMap));
-                                }
-                            });
-                        }
-                    }
-                } else if (poi.address) {
-                    // Fallback to geocoding address
-                    geocoder.geocode({ address: poi.address }, (results, status) => {
-                        if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
-                            const location = results[0].geometry.location;
-                            positionsMap.set(poi.google_place_id || poi.address || '', {
-                                lat: location.lat(),
-                                lng: location.lng(),
-                            });
-                            setPoiPositions(new Map(positionsMap));
-                        }
-                    });
-                }
+        for (const poi of pois) {
+            // Use GPS location directly from POI if available
+            if (poi.gps_location && poi.gps_location.lat && poi.gps_location.lng) {
+                const key = poi.google_place_id || poi.address || `poi-${poi.order}`;
+                positionsMap.set(key, {
+                    lat: poi.gps_location.lat,
+                    lng: poi.gps_location.lng,
+                });
             }
-        };
+        }
 
-        geocodePois();
+        if (positionsMap.size > 0) {
+            setPoiPositions(new Map(positionsMap));
+        }
     }, [pois, map]);
 
     // Create stops from POIs with positions
@@ -93,7 +49,18 @@ const MapContent = ({ showTourContent = true, pois }: MapContentProps) => {
         
         return pois
             .map((poi) => {
-                const position = poiPositions.get(poi.google_place_id || poi.address || '');
+                // Try to get position from poiPositions map first (for compatibility)
+                const key = poi.google_place_id || poi.address || `poi-${poi.order}`;
+                let position = poiPositions.get(key);
+                
+                // If not in map, try to use GPS location directly from POI
+                if (!position && poi.gps_location && poi.gps_location.lat && poi.gps_location.lng) {
+                    position = {
+                        lat: poi.gps_location.lat,
+                        lng: poi.gps_location.lng,
+                    };
+                }
+                
                 if (!position) return null;
 
                 return {

@@ -199,14 +199,15 @@ def verify_multiple_pois(pois: list) -> list:
 
 def get_place_details(poi_title: str, poi_address: str) -> Optional[Dict]:
     """
-    Get Google Place ID and name for a POI.
+    Get Google Place ID, name, GPS location, and photo URL for a POI.
 
     Args:
         poi_title: The name/title of the POI
         poi_address: The address of the POI
 
     Returns:
-        Dictionary with place_id and name, or None if not found
+        Dictionary with place_id, name, formatted_address, gps_location, and photo_url,
+        or None if not found
 
     Raises:
         ValueError: If API key is not found
@@ -221,7 +222,7 @@ def get_place_details(poi_title: str, poi_address: str) -> Optional[Dict]:
         # Search for the POI using find_place
         search_query = f"{poi_title}, {poi_address}"
 
-        result = gmaps.find_place(
+        result = gmaps.find_place(  # type: ignore[attr-defined]
             input=search_query,
             input_type="textquery",
             fields=["place_id", "name", "formatted_address"]
@@ -234,14 +235,77 @@ def get_place_details(poi_title: str, poi_address: str) -> Optional[Dict]:
 
         # Get the first candidate
         candidate = result['candidates'][0]
+        place_id = candidate.get('place_id', '')
+
+        if not place_id:
+            print(f"❌ No place_id found for: {search_query}")
+            return None
+
+        # Get detailed place information including geometry and photos
+        gps_location = None
+        photo_url = None
+        try:
+            place_result = gmaps.place(  # type: ignore[attr-defined]
+                place_id,
+                fields=["place_id", "name", "formatted_address", "geometry", "photos"]
+            )
+            
+            # Extract GPS location and photo from place result if available
+            place_data = None
+            if place_result and 'result' in place_result:
+                place_data = place_result['result']
+            elif place_result and isinstance(place_result, dict):
+                place_data = place_result
+            
+            if place_data:
+                # Extract GPS location from geometry
+                geometry = place_data.get('geometry')
+                if geometry and 'location' in geometry:
+                    location = geometry['location']
+                    gps_location = {
+                        'lat': location.get('lat'),
+                        'lng': location.get('lng')
+                    }
+                
+                # Extract photo URL from photos
+                photos = place_data.get('photos', [])
+                if photos and len(photos) > 0:
+                    # Get the first photo's reference
+                    photo_reference = photos[0].get('photo_reference')
+                    if photo_reference:
+                        # Build the photo URL using Google Places Photos API
+                        photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={photo_reference}&key={api_key}"
+                        
+        except (AttributeError, Exception) as e:
+            # Fallback if place method doesn't exist or fails - use geocoding on formatted_address
+            print(f"⚠️  Place details API call failed, using geocoding fallback: {str(e)}")
+            try:
+                geocode_result = gmaps.geocode(candidate.get('formatted_address', poi_address))  # type: ignore[attr-defined]
+                if geocode_result and len(geocode_result) > 0:
+                    geometry = geocode_result[0].get('geometry', {})
+                    location = geometry.get('location', {})
+                    if location:
+                        gps_location = {
+                            'lat': location.get('lat'),
+                            'lng': location.get('lng')
+                        }
+            except Exception as geocode_error:
+                print(f"⚠️  Geocoding fallback also failed: {str(geocode_error)}")
+                gps_location = None
 
         place_details = {
-            'google_place_id': candidate.get('place_id', ''),
+            'google_place_id': place_id,
             'google_maps_name': candidate.get('name', poi_title),
-            'formatted_address': candidate.get('formatted_address', poi_address)
+            'formatted_address': candidate.get('formatted_address', poi_address),
+            'gps_location': gps_location,
+            'photo_url': photo_url
         }
 
         print(f"✅ Found place details for '{poi_title}': {place_details['google_maps_name']} ({place_details['google_place_id']})")
+        if gps_location:
+            print(f"   GPS Location: {gps_location['lat']}, {gps_location['lng']}")
+        if photo_url:
+            print(f"   Photo URL: {photo_url}")
 
         return place_details
 

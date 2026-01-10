@@ -531,19 +531,24 @@ async def generate_tour(request: GenerateTourRequest):
             poi_address = ordered_poi.get('poi_address', '')
             order = ordered_poi.get('order', 0)
 
-            # Get Google Maps details (place_id, name)
+            # Get Google Maps details (place_id, name, GPS location, photo URL)
             place_details = get_place_details(poi_title, poi_address)
 
             if place_details:
+                # Extract GPS location and photo URL if available
+                gps_location = place_details.get('gps_location')
+                photo_url = place_details.get('photo_url')
+                
                 poi_entry = {
                     "order": order,
                     "google_place_id": place_details.get('google_place_id', ''),
-                    "google_place_img_url": None,  # Can be added later
+                    "google_place_img_url": photo_url if photo_url else None,
                     "address": place_details.get('formatted_address', poi_address),
                     "google_maps_name": place_details.get('google_maps_name', poi_title),
                     "story": None,  # To be filled later
                     "pin_image_url": None,  # To be filled later
-                    "story_keywords": None  # To be filled later
+                    "story_keywords": None,  # To be filled later
+                    "gps_location": gps_location if gps_location else None
                 }
             else:
                 # Fallback if place details not found
@@ -555,7 +560,8 @@ async def generate_tour(request: GenerateTourRequest):
                     "google_maps_name": poi_title,
                     "story": None,
                     "pin_image_url": None,
-                    "story_keywords": None
+                    "story_keywords": None,
+                    "gps_location": None
                 }
 
             enriched_pois.append(poi_entry)
