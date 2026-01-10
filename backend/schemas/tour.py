@@ -46,7 +46,7 @@ class Tour(BaseModel):
     status_code: str = Field(..., description="Status code of the tour")
     max_distance_km: float = Field(..., description="Maximum distance in kilometers")
     max_duration_minutes: int = Field(..., description="Maximum duration in minutes")
-    introduction: str = Field(..., description="Introduction text for the tour")
+    introduction: Optional[str] = Field(None, description="Introduction text for the tour")
     pois: List[POI] = Field(default_factory=list, description="List of Points of Interest")
     storyline_keywords: Optional[str] = Field(None, description="Keywords for the tour storyline")
     constraints: Optional[Dict[str, Any]] = Field(None, description="Constraints used for the tour")
