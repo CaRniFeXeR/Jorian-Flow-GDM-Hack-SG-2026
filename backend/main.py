@@ -11,6 +11,7 @@ from database.tour import TourRepository
 from database.tts_storage import TTSRepository
 from gemini_service import generate_theme_options, generate_pois
 from maps_service import get_address_from_coordinates
+from tts import router as tts_router
 
 load_dotenv()
 
@@ -24,6 +25,8 @@ app = FastAPI(
     description="API for generating thematic tour options based on location",
     version="1.0.0"
 )
+
+app.include_router(tts_router)
 
 # CORS middleware configuration
 app.add_middleware(
