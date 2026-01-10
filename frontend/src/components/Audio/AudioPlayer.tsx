@@ -1,6 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { generateTtsApiV1TtsTtsPost } from '../../client';
 import type { TtsResponse } from '../../client/types.gen';
+
+export interface AudioPlayerRef {
+    play: () => Promise<void>;
+    pause: () => void;
+    isPlaying: () => boolean;
+}
 
 interface AudioPlayerProps {
     text: string;
@@ -8,18 +14,41 @@ interface AudioPlayerProps {
     onLoadComplete?: () => void;
     onError?: (error: Error) => void;
     autoPlay?: boolean;
+    hidden?: boolean;
 }
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({
+const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(({
     text,
     onLoadStart,
     onLoadComplete,
     onError,
     autoPlay = false,
-}) => {
+    hidden = false,
+}, ref) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [currentSrc, setCurrentSrc] = useState<string | null>(null);
+
+    useImperativeHandle(ref, () => ({
+        play: async () => {
+            if (audioRef.current) {
+                try {
+                    await audioRef.current.play();
+                } catch (err) {
+                    console.error('Error playing audio:', err);
+                    onError?.(err as Error);
+                }
+            }
+        },
+        pause: () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+        },
+        isPlaying: () => {
+            return audioRef.current ? !audioRef.current.paused : false;
+        },
+    }));
 
     useEffect(() => {
         if (!text.trim()) {
@@ -69,6 +98,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         loadAudio();
     }, [text, autoPlay, onLoadStart, onLoadComplete, onError]);
 
+    if (hidden) {
+        return (
+            <audio
+                ref={audioRef}
+                src={currentSrc || undefined}
+                style={{ display: 'none' }}
+            >
+                Your browser does not support the audio element.
+            </audio>
+        );
+    }
+
     return (
         <div className="audio-player">
             {isLoading && (
@@ -84,6 +125,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             </audio>
         </div>
     );
-};
+});
+
+AudioPlayer.displayName = 'AudioPlayer';
 
 export default AudioPlayer;

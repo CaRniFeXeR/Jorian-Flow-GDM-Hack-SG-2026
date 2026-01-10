@@ -33,7 +33,7 @@ function App() {
       <Routes>
         <Route path="/" element={<AppContent />} />
         <Route path="/tour/generate/:tourId" element={<TourGeneration />} />
-        <Route path="/tour/:tourId" element={<TourView />} />
+        <Route path="/tour/:tourId/:stopOrder?" element={<TourView />} />
         <Route path="/error" element={<ErrorScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

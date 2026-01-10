@@ -6,16 +6,13 @@ const AudioControls: React.FC = () => {
     const { isPlaying, setPlaying } = useTour();
 
     return (
-        <div className="flex items-center justify-center gap-6 w-full max-w-sm mx-auto py-4">
+        <div className="flex items-center justify-center gap-3 w-full max-w-sm mx-auto py-4">
             {/* 15s Back */}
             <button
-                className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-white border border-indigo-100 text-indigo-500 shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-indigo-50 active:scale-95 transition-all duration-200"
-                aria-label="Rewind 15 seconds"
+                className="flex items-center justify-center w-14 h-14 rounded-full bg-white border border-indigo-100 text-indigo-500 shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-indigo-50 active:scale-95 transition-all duration-200"
+                aria-label="Rewind 15 seconds test"
             >
-                <div className="relative">
-                    <RotateCcw size={24} strokeWidth={2} />
-                    <span className="absolute top-[52%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[9px] font-extrabold text-indigo-600/90 select-none">15</span>
-                </div>
+                <RotateCcw size={24} strokeWidth={2} />
             </button>
 
             {/* Play/Pause - Gemini FAB Style */}
@@ -33,13 +30,10 @@ const AudioControls: React.FC = () => {
 
             {/* 15s Forward */}
             <button
-                className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-white border border-indigo-100 text-indigo-500 shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-indigo-50 active:scale-95 transition-all duration-200"
+                className="flex items-center justify-center w-14 h-14 rounded-full bg-white border border-indigo-100 text-indigo-500 shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-indigo-50 active:scale-95 transition-all duration-200"
                 aria-label="Skip forward 15 seconds"
             >
-                <div className="relative">
-                    <RotateCw size={24} strokeWidth={2} />
-                    <span className="absolute top-[52%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[9px] font-extrabold text-indigo-600/90 select-none">15</span>
-                </div>
+                <RotateCw size={24} strokeWidth={2} />
             </button>
         </div>
     );
