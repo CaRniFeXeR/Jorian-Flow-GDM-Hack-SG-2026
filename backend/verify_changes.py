@@ -20,7 +20,8 @@ def mock_external_services():
     with patch("routes.tour.validate_user_request_guardrail", new_callable=AsyncMock) as mock_guardrail, \
          patch("routes.tour.verify_multiple_pois", new_callable=MagicMock) as mock_verify_pois, \
          patch("routes.tour.order_pois_for_tour", new_callable=AsyncMock) as mock_order_pois, \
-         patch("routes.tour.get_place_details", new_callable=MagicMock) as mock_place_details:
+         patch("routes.tour.get_place_details", new_callable=MagicMock) as mock_place_details, \
+         patch("routes.tour.calculate_route_metrics", new_callable=MagicMock) as mock_route_metrics:
 
         mock_guardrail.return_value = True
         
@@ -45,11 +46,17 @@ def mock_external_services():
             "google_maps_name": "Test Name"
         }
 
+        mock_route_metrics.return_value = {
+            "total_distance_km": 1.0,
+            "total_duration_minutes": 30.0
+        }
+
         yield {
             "guardrail": mock_guardrail,
             "verify_pois": mock_verify_pois,
             "order_pois": mock_order_pois,
-            "place_details": mock_place_details
+            "place_details": mock_place_details,
+            "route_metrics": mock_route_metrics
         }
 
 def test_tour_flow(mock_external_services):
@@ -100,16 +107,6 @@ def test_tour_flow(mock_external_services):
             # Step 2: Filter POI
             print("\nTesting /filter_poi...")
             pois_input = [
-                {
-                    "poi_title": "POI 1",
-                    "poi_address": "Address 1",
-                    "order": 0,
-                    "google_place_id": "id1"
-                },
-                {
-                    "poi_title": "POI 2",
-                    "poi_address": "Address 2",
-                    "order": 0,
                     "google_place_id": "id2"
                 }
             ]

@@ -4,10 +4,10 @@ from typing import Dict, List
 from uuid import UUID, uuid4
 from datetime import datetime
 from services.gemini_service import generate_theme_options, generate_pois, validate_user_request_guardrail, order_pois_for_tour
-from services.maps_service import get_address_from_coordinates, verify_multiple_pois, get_place_details
+from services.maps_service import get_address_from_coordinates, verify_multiple_pois, get_place_details, calculate_route_metrics
 from database.database_base import DatabaseBase
 from database.tour import TourRepository
-from schemas.tour import Tour
+
 
 router = APIRouter()
 
@@ -77,9 +77,7 @@ class GeneratePOIRequest(BaseModel):
         }
 
 
-class POI(BaseModel):
-    poi_title: str
-    poi_address: str
+from schemas.tour import Tour, POI
 
 
 class GeneratePOIResponse(BaseModel):
@@ -516,13 +514,61 @@ async def generate_tour(request: GenerateTourRequest):
         pois_dict = filtered_pois
 
         # Use Gemini to order the POIs optimally
-        ordered_pois = await order_pois_for_tour(
-            pois=pois_dict,
-            user_address=user_address,
-            max_time=max_time,
-            distance=distance,
-            theme=theme
-        )
+        max_retries = 3
+        current_pois = pois_dict
+        feedback = None
+        
+        ordered_pois = []
+        
+        for attempt in range(max_retries):
+            print(f"🔄 Tour generation attempt {attempt + 1}/{max_retries}")
+            
+            # Use Gemini to order the POIs optimally
+            ordered_pois = await order_pois_for_tour(
+                pois=current_pois,
+                user_address=user_address,
+                max_time=request.constraints.max_time if hasattr(request, 'constraints') and hasattr(request.constraints, 'max_time') else max_time,
+                distance=request.constraints.distance if hasattr(request, 'constraints') and hasattr(request.constraints, 'distance') else distance,
+                theme=theme,
+                feedback=feedback
+            )
+            
+            # Prepare waypoints for route calculation
+            waypoints = [user_address] # Start
+            for poi in ordered_pois:
+                waypoints.append(poi.get('poi_address', ''))
+            
+            # Calculate route metrics
+            metrics = calculate_route_metrics(user_address, waypoints)
+            total_distance_km = metrics.get('total_distance_km', float('inf'))
+            total_duration_min = metrics.get('total_duration_minutes', float('inf'))
+            
+            print(f"   📊 Metrics: {total_distance_km:.2f} km, {total_duration_min:.0f} min")
+            
+            # Check constraints
+            # Parse limits (assuming they are stored as strings like "5 km" or numbers in DB)
+            # Helper to parse limit from string if needed, or use the value if already float/int
+            limit_distance = float(distance.split()[0]) if isinstance(distance, str) and ' ' in distance else (float(distance) if distance else 5.0)
+            limit_time = 120 # Default
+            if isinstance(max_time, str):
+                 if 'hour' in max_time:
+                     limit_time = float(max_time.split()[0]) * 60
+                 elif 'min' in max_time:
+                     limit_time = float(max_time.split()[0])
+            else:
+                limit_time = int(max_time) if max_time else 120
+
+            # Allow some buffer (e.g. 10%)
+            if total_distance_km <= limit_distance * 1.1 and total_duration_min <= limit_time * 1.1:
+                print("   ✅ Constraints met!")
+                break
+            else:
+                print("   ❌ Constraints exceeded.")
+                feedback = f"The previous plan was too long. Actual distance: {total_distance_km:.2f} km (Limit: {limit_distance} km). Actual duration: {total_duration_min:.0f} min (Limit: {limit_time} min). Please reduce the number of stops or choose closer ones."
+                
+                # If this was the last attempt, we still use the result but maybe log/warn
+                if attempt == max_retries - 1:
+                    print("   ⚠️ Max retries reached. Returning best effort.")
 
         # Enrich each POI with Google Maps details
         enriched_pois = []

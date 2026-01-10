@@ -1,7 +1,7 @@
 import os
 import json
 import google.generativeai as genai
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 def get_prompt_template(address: str) -> str:
@@ -125,11 +125,11 @@ IMPORTANT: Return ONLY a valid JSON array with the following structure, nothing 
 [
     {{
         "poi_title": "Name of the POI",
-        "poi_address": "Full address of the POI"
+        "address": "Full address of the POI"
     }},
     {{
         "poi_title": "Name of the POI",
-        "poi_address": "Full address of the POI"
+        "address": "Full address of the POI"
     }}
 ]
 
@@ -159,7 +159,7 @@ async def generate_pois(address: str, time_constraint: str, distance_constraint:
         user_custom_info: Additional user preferences
 
     Returns:
-        List of dictionaries containing poi_title and poi_address
+        List of dictionaries containing poi_title and address
 
     Raises:
         Exception: If API call fails or response is invalid
@@ -203,7 +203,7 @@ async def generate_pois(address: str, time_constraint: str, distance_constraint:
 
         # Validate each POI has required fields
         for poi in pois:
-            if not isinstance(poi, dict) or 'poi_title' not in poi or 'poi_address' not in poi:
+            if not isinstance(poi, dict) or 'poi_title' not in poi or 'address' not in poi:
                 raise Exception("Invalid POI format in response")
 
         return pois
@@ -313,7 +313,7 @@ IMPORTANT: Return ONLY the JSON object, no additional text."""
         return False
 
 
-async def order_pois_for_tour(pois: List[Dict[str, str]], user_address: str, max_time: str, distance: str, theme: str) -> List[Dict]:
+async def order_pois_for_tour(pois: List[Dict[str, str]], user_address: str, max_time: str, distance: str, theme: str, feedback: Optional[str] = None) -> List[Dict]:
     """
     Order POIs optimally for a tour based on constraints and proximity.
 
@@ -323,6 +323,7 @@ async def order_pois_for_tour(pois: List[Dict[str, str]], user_address: str, max
         max_time: Maximum time available for the tour
         distance: Maximum distance willing to travel
         theme: Tour theme/custom message
+        feedback: Feedback from previous attempt (e.g. "Too long", "Too far")
 
     Returns:
         List of ordered POIs with order field added
@@ -343,7 +344,11 @@ async def order_pois_for_tour(pois: List[Dict[str, str]], user_address: str, max
     # Create POI list for prompt
     poi_list_str = ""
     for i, poi in enumerate(pois, 1):
-        poi_list_str += f"{i}. {poi.get('poi_title', 'Unknown')} - {poi.get('poi_address', 'Unknown')}\n"
+        poi_list_str += f"{i}. {poi.get('poi_title', 'Unknown')} - {poi.get('address', 'Unknown')}\n"
+
+    feedback_text = ""
+    if feedback:
+        feedback_text = f"\nIMPORTANT FEEDBACK FROM PREVIOUS ATTEMPT:\n{feedback}\nPlease adjust the plan to address this feedback. You may remove less important POIs if necessary to meet constraints.\n"
 
     # Create the ordering prompt
     prompt = f"""You are an expert tour planner. Given a list of Points of Interest (POIs) and constraints, determine the optimal order to visit them.
@@ -355,7 +360,7 @@ Tour Theme: {theme}
 Constraints:
 - Maximum Time: {max_time}
 - Maximum Distance: {distance}
-
+{feedback_text}
 POIs to visit:
 {poi_list_str}
 
