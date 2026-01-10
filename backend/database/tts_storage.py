@@ -1,6 +1,6 @@
 from typing import Optional
 from tinydb import Query
-from .database_base import DatabaseBase
+from database.database_base import DatabaseBase
 
 class TTSRepository:
     def __init__(self, db_base: DatabaseBase):

@@ -1,6 +1,6 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, cast
 from tinydb import Query
-from .database_base import DatabaseBase
+from database.database_base import DatabaseBase
 
 class TourRepository:
     def __init__(self, db_base: DatabaseBase):
@@ -18,13 +18,18 @@ class TourRepository:
         """
         Get a tour by its document ID.
         """
-        return self.table.get(doc_id=tour_id)
+        doc = self.table.get(doc_id=tour_id)
+        if doc is None:
+            return None
+        # Document is a dict subclass, cast to Dict for type checker
+        return cast(Dict[str, Any], doc)
 
     def list_tours(self) -> List[Dict[str, Any]]:
         """
         List all tours in the database.
         """
-        return self.table.all()
+        # Document is a dict subclass, cast to Dict for type checker
+        return [cast(Dict[str, Any], doc) for doc in self.table.all()]
     
     def update_tour(self, tour_id: int, updates: Dict[str, Any]) -> None:
         """
