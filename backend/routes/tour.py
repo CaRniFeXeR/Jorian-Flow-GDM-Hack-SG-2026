@@ -1,11 +1,16 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
+from datetime import datetime
+import logging
 from services.gemini_service import generate_theme_options, generate_pois, validate_user_request_guardrail, order_pois_for_tour
 from services.maps_service import get_address_from_coordinates, verify_multiple_pois, get_place_details, calculate_route_metrics
 from database.database_base import DatabaseBase
 from database.tour import TourRepository
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
@@ -13,6 +18,222 @@ router = APIRouter()
 # Initialize Repository
 db_base = DatabaseBase("database/db.json")
 tour_repo = TourRepository(db_base)
+
+
+async def process_tour_generation_background(
+    transaction_id: str,
+    user_address: str,
+    max_time: str,
+    distance: str,
+    custom_message: str
+):
+    """
+    Background task to automatically generate a complete tour after guardrail validation.
+
+    This function orchestrates the following steps:
+    1. Geocode user address to coordinates
+    2. Generate POIs based on constraints
+    3. Filter/verify POIs using Google Maps
+    4. Order POIs optimally and enrich with details
+
+    Args:
+        transaction_id: UUID of the tour
+        user_address: User's starting location
+        max_time: Maximum time constraint
+        distance: Maximum distance constraint
+        custom_message: User's custom preferences/theme
+    """
+    try:
+        logger.info(f"🚀 Starting background tour generation for transaction {transaction_id}")
+
+        # Update status: geocoding
+        tour_repo.update_tour_by_uuid(
+            tour_uuid=transaction_id,
+            updates={"status_code": "geocoding"}
+        )
+
+        # Step 1: Geocode address to get coordinates
+        from services.maps_service import get_coordinates_from_address
+
+        logger.info(f"📍 Geocoding address: {user_address}")
+        latitude, longitude = get_coordinates_from_address(user_address)
+        logger.info(f"✅ Coordinates obtained: {latitude}, {longitude}")
+
+        # Update status: generating POIs
+        tour_repo.update_tour_by_uuid(
+            tour_uuid=transaction_id,
+            updates={"status_code": "generating_pois"}
+        )
+
+        # Step 2: Generate POIs using Gemini
+        logger.info(f"🤖 Generating POIs with Gemini...")
+        pois_data = await generate_pois(
+            address=user_address,
+            time_constraint=max_time,
+            distance_constraint=distance,
+            user_custom_info=custom_message
+        )
+        logger.info(f"✅ Generated {len(pois_data)} POIs")
+
+        # Update status: filtering POIs
+        tour_repo.update_tour_by_uuid(
+            tour_uuid=transaction_id,
+            updates={"status_code": "filtering_pois"}
+        )
+
+        # Step 3: Filter POIs using Google Maps verification
+        logger.info(f"🔍 Verifying POIs with Google Maps...")
+        verified_pois_dict = verify_multiple_pois(pois_data)
+        logger.info(f"✅ Verified {len(verified_pois_dict)} out of {len(pois_data)} POIs")
+
+        # Store filtered POIs in database
+        tour_repo.update_tour_by_uuid(
+            tour_uuid=transaction_id,
+            updates={"filtered_candidate_poi_list": verified_pois_dict}
+        )
+
+        # If no POIs were verified, mark as failed
+        if not verified_pois_dict:
+            logger.error(f"❌ No POIs were verified for transaction {transaction_id}")
+            tour_repo.update_tour_by_uuid(
+                tour_uuid=transaction_id,
+                updates={
+                    "status_code": "failed",
+                    "error_message": "No POIs could be verified in the specified area"
+                }
+            )
+            return
+
+        # Update status: generating tour
+        tour_repo.update_tour_by_uuid(
+            tour_uuid=transaction_id,
+            updates={"status_code": "generating_tour"}
+        )
+
+        # Step 4: Order POIs and generate tour
+        logger.info(f"🗺️ Ordering POIs for optimal tour...")
+
+        # Get tour data to retrieve theme
+        tour_data = tour_repo.get_tour_by_uuid(transaction_id)
+        theme = tour_data.get('theme', custom_message)
+
+        # Use retry logic similar to generate_tour endpoint
+        max_retries = 3
+        current_pois = verified_pois_dict
+        feedback = None
+        ordered_pois = []
+
+        for attempt in range(max_retries):
+            logger.info(f"🔄 Tour generation attempt {attempt + 1}/{max_retries}")
+
+            # Use Gemini to order the POIs optimally
+            ordered_pois = await order_pois_for_tour(
+                pois=current_pois,
+                user_address=user_address,
+                max_time=max_time,
+                distance=distance,
+                theme=theme,
+                feedback=feedback
+            )
+
+            # Prepare waypoints for route calculation
+            waypoints = [user_address]  # Start
+            for poi in ordered_pois:
+                waypoints.append(poi.get('poi_address', ''))
+
+            # Calculate route metrics
+            metrics = calculate_route_metrics(user_address, waypoints)
+            total_distance_km = metrics.get('total_distance_km', float('inf'))
+            total_duration_min = metrics.get('total_duration_minutes', float('inf'))
+
+            logger.info(f"📊 Route metrics: {total_distance_km:.2f} km, {total_duration_min:.0f} min")
+
+            # Parse constraints
+            limit_distance = float(distance.split()[0]) if isinstance(distance, str) and ' ' in distance else 5.0
+            limit_time = 120  # Default
+            if isinstance(max_time, str):
+                if 'hour' in max_time:
+                    limit_time = float(max_time.split()[0]) * 60
+                elif 'min' in max_time:
+                    limit_time = float(max_time.split()[0])
+
+            # Check if constraints are met (with 10% buffer)
+            if total_distance_km <= limit_distance * 1.1 and total_duration_min <= limit_time * 1.1:
+                logger.info("✅ Tour constraints met!")
+                break
+            else:
+                logger.warning(f"⚠️ Constraints exceeded (attempt {attempt + 1})")
+                feedback = f"Previous plan exceeded constraints. Distance: {total_distance_km:.2f}km (limit: {limit_distance}km), Duration: {total_duration_min:.0f}min (limit: {limit_time}min). Reduce POIs or choose closer ones."
+
+                if attempt == max_retries - 1:
+                    logger.warning("⚠️ Max retries reached, using best effort result")
+
+        # Step 5: Enrich POIs with Google Maps details
+        logger.info(f"📍 Enriching {len(ordered_pois)} POIs with Google Maps details...")
+        enriched_pois = []
+
+        for ordered_poi in ordered_pois:
+            poi_title = ordered_poi.get('poi_title', '')
+            poi_address = ordered_poi.get('poi_address', '')
+            order = ordered_poi.get('order', 0)
+
+            # Get Google Maps details
+            place_details = get_place_details(poi_title, poi_address)
+
+            if place_details:
+                gps_location = place_details.get('gps_location')
+                photo_url = place_details.get('photo_url')
+
+                poi_entry = {
+                    "order": order,
+                    "google_place_id": place_details.get('google_place_id', ''),
+                    "google_place_img_url": photo_url if photo_url else None,
+                    "address": place_details.get('formatted_address', poi_address),
+                    "google_maps_name": place_details.get('google_maps_name', poi_title),
+                    "story": None,
+                    "pin_image_url": None,
+                    "story_keywords": None,
+                    "gps_location": gps_location if gps_location else None
+                }
+            else:
+                poi_entry = {
+                    "order": order,
+                    "google_place_id": "",
+                    "google_place_img_url": None,
+                    "address": poi_address,
+                    "google_maps_name": poi_title,
+                    "story": None,
+                    "pin_image_url": None,
+                    "story_keywords": None,
+                    "gps_location": None
+                }
+
+            enriched_pois.append(poi_entry)
+
+        # Update tour with final POIs and mark as completed
+        tour_repo.update_tour_by_uuid(
+            tour_uuid=transaction_id,
+            updates={
+                "pois": enriched_pois,
+                "status_code": "completed"
+            }
+        )
+
+        logger.info(f"✅ Tour generation completed successfully for transaction {transaction_id}")
+        logger.info(f"   Final tour has {len(enriched_pois)} POIs")
+
+    except Exception as e:
+        logger.error(f"❌ Error in background tour generation for {transaction_id}: {str(e)}")
+        logger.exception(e)  # Log full stack trace
+
+        # Update tour status to failed with error message
+        tour_repo.update_tour_by_uuid(
+            tour_uuid=transaction_id,
+            updates={
+                "status_code": "failed",
+                "error_message": str(e)
+            }
+        )
 
 
 class ThemeOptionsRequest(BaseModel):
@@ -383,7 +604,7 @@ async def filter_poi_endpoint(request: FilterPOIRequest):
 
 
 @router.post("/guardrail", response_model=GuardrailResponse)
-async def guardrail_validation(request: GuardrailRequest):
+async def guardrail_validation(request: GuardrailRequest, background_tasks: BackgroundTasks):
     """
     Validate if a user's tour request is legitimate for their current location.
 
@@ -394,8 +615,16 @@ async def guardrail_validation(request: GuardrailRequest):
     The validation result is stored in the tours table with status_code indicating
     whether the request passed validation.
 
+    If the request is valid, a background process is automatically started to:
+    1. Generate POIs based on the address and constraints
+    2. Filter/verify the POIs using Google Maps
+    3. Order the POIs optimally and create the tour
+
+    You can check the tour status by calling GET /{transaction_id}/{is_dummy}
+
     Args:
         request: GuardrailRequest containing user address and constraints
+        background_tasks: FastAPI background tasks handler
 
     Returns:
         GuardrailResponse with transaction_id and validation result
@@ -456,6 +685,20 @@ async def guardrail_validation(request: GuardrailRequest):
 
         # Store in tours table
         tour_repo.add_tour(tour_data)
+
+        # If validation passed, start background tour generation process
+        if is_valid:
+            logger.info(f"✅ Guardrail passed, starting background tour generation for {transaction_id}")
+            background_tasks.add_task(
+                process_tour_generation_background,
+                transaction_id=transaction_id,
+                user_address=request.user_address,
+                max_time=request.constraints.max_time,
+                distance=request.constraints.distance,
+                custom_message=request.constraints.custom
+            )
+        else:
+            logger.info(f"❌ Guardrail failed for {transaction_id}, skipping tour generation")
 
         return GuardrailResponse(
             transaction_id=transaction_id,
