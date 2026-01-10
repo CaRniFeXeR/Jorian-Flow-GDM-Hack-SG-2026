@@ -587,3 +587,62 @@ Return ONLY the JSON object, no additional text."""
         # Return original POIs without stories if failed
         return pois
 
+
+async def generate_tour_introduction(pois: List[Dict], user_custom_info: str) -> str:
+    """
+    Generate a short introduction for the tour based on the POIs.
+
+    Args:
+        pois: List of POI dictionaries
+        user_custom_info: User's custom preferences/theme for context
+
+    Returns:
+        String containing the tour introduction
+    """
+    # Configure Gemini API
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not found in environment variables")
+
+    genai.configure(api_key=api_key)
+
+    # Initialize the model
+    model = genai.GenerativeModel('gemini-3-flash-preview')
+
+    # Prepare POIs for prompt (simplify to just titles and reasons/descriptions if available)
+    simple_pois = []
+    for poi in pois:
+        simple_pois.append(f"{poi.get('poi_title', 'Unknown Location')} - {poi.get('story_keywords', '')}")
+
+    poi_list_str = "\n".join(simple_pois)
+
+    # Create the introduction prompt
+    prompt = f"""You are an enthusiastic tour guide. Write a short, engaging introduction (aim for 2-3 sentences) for a tour with the following details:
+
+Theme: {user_custom_info}
+
+Stops on this tour:
+{poi_list_str}
+
+The introduction should welcome the user and set the mood for the tour. Do not list the stops explicitly in the introduction, but use them to understand the vibe.
+
+IMPORTANT: Return ONLY the raw text of the introduction, nothing else. No "Here is the introduction:" or quotes."""
+
+    try:
+        # Generate content
+        response = model.generate_content(prompt)
+        
+        # Extract the response text
+        introduction = response.text.strip()
+        
+        # Cleanup quotes if present
+        if introduction.startswith('"') and introduction.endswith('"'):
+            introduction = introduction[1:-1]
+            
+        return introduction
+
+    except Exception as e:
+        print(f"❌ Error generating introduction: {str(e)}")
+        return f"Welcome to your custom tour based on {user_custom_info}! Get ready to explore some amazing locations."
+
+

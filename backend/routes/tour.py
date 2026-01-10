@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 import logging
-from services.gemini_service import generate_theme_options, validate_user_request_guardrail, generate_narrative_stories
+from services.gemini_service import generate_theme_options, validate_user_request_guardrail, generate_narrative_stories, generate_tour_introduction
 from services.maps_service import get_address_from_coordinates
 from database.database_base import DatabaseBase
 from database.tour import TourRepository
@@ -40,6 +40,8 @@ async def process_tour_generation_background(
     2. Generate POIs based on constraints
     3. Filter/verify POIs using Google Maps
     4. Order POIs optimally and enrich with details
+    5. Generate tour introduction
+    6. Generate narrative stories for each POI
 
     Args:
         transaction_id: UUID of the tour
@@ -329,6 +331,41 @@ class GenerateStoryResponse(BaseModel):
                 "success": True,
                 "stories_generated": 5,
                 "updated_pois": []
+            }
+        }
+
+
+class GenerateIntroductionRequest(BaseModel):
+    transaction_id: str
+    pois: List[POI]
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
+                "pois": [
+                    {
+                        "order": 1,
+                        "poi_title": "Singapore Botanic Gardens",
+                        "google_place_id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
+                        "address": "1 Cluny Rd, Singapore 259569"
+                    }
+                ]
+            }
+        }
+
+
+class GenerateIntroductionResponse(BaseModel):
+    transaction_id: str
+    success: bool
+    introduction: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
+                "success": True,
+                "introduction": "Welcome to your historical tour of Singapore! Get ready to explore..."
             }
         }
 
@@ -677,6 +714,71 @@ async def generate_tour(request: GenerateTourRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Error generating tour: {str(e)}"
+        )
+
+
+@router.post("/generate_introduction", response_model=GenerateIntroductionResponse)
+async def generate_introduction_endpoint(request: GenerateIntroductionRequest):
+    """
+    Generate an introduction for the tour.
+    
+    This endpoint takes a list of POIs and generates a short introduction
+    describing the tour. It runs before story generation.
+    It updates the tour's 'introduction' field in the database.
+    
+    Args:
+        request: GenerateIntroductionRequest with transaction_id and POI list
+
+    Returns:
+        GenerateIntroductionResponse with the generated introduction
+    """
+    try:
+        # Get tour to retrieve context/theme
+        tour_data = tour_service.get_tour(request.transaction_id)
+        if not tour_data:
+             raise HTTPException(
+                 status_code=404, 
+                 detail=f"Tour with transaction_id {request.transaction_id} not found"
+             )
+             
+        # Extract theme or constraints for context
+        constraints = tour_data.get('constraints', {})
+        theme = tour_data.get('theme', constraints.get('custom', 'Standard Tour'))
+        
+        # Convert POIs to dicts for processing
+        pois_dicts = [poi.model_dump() for poi in request.pois]
+        
+        # Generate introduction using Gemini
+        introduction = await generate_tour_introduction(
+            pois=pois_dicts,
+            user_custom_info=theme
+        )
+        
+        # Update the tour in database with the introduction
+        tour_data = tour_service.tour_repo.update_tour_by_uuid(
+            tour_uuid=request.transaction_id,
+            updates={"introduction": introduction}
+        )
+        
+        if not tour_data:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to update tour introduction in database"
+            )
+
+        return GenerateIntroductionResponse(
+            transaction_id=request.transaction_id,
+            success=True,
+            introduction=introduction
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating introduction: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating introduction: {str(e)}"
         )
 
 
