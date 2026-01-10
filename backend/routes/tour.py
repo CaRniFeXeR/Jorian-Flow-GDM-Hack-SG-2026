@@ -3,11 +3,13 @@ from pydantic import BaseModel
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 import logging
-from services.gemini_service import generate_theme_options, generate_pois, validate_user_request_guardrail, order_pois_for_tour
-from services.maps_service import get_address_from_coordinates, verify_multiple_pois, get_place_details, calculate_route_metrics, get_coordinates_from_address
+from services.gemini_service import generate_theme_options, validate_user_request_guardrail
+from services.maps_service import get_address_from_coordinates
 from database.database_base import DatabaseBase
 from database.tour import TourRepository
-from helpers.tour_helpers import parse_time_to_minutes, parse_distance_to_km
+from services.poi_service import POIService
+from services.tour_service import TourService
+from services.tour_orchestration_service import TourOrchestrationService
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -15,277 +17,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Initialize Repository
+# Initialize Repository and Services
 db_base = DatabaseBase("database/db.json")
 tour_repo = TourRepository(db_base)
-
-
-def _update_tour_status(transaction_id: str, status_code: str):
-    """
-    Helper function to update tour status in the database.
-
-    Args:
-        transaction_id: UUID of the tour
-        status_code: New status code to set
-    """
-    tour_repo.update_tour_by_uuid(
-        tour_uuid=transaction_id,
-        updates={"status_code": status_code}
-    )
-
-
-async def _generate_pois_step(
-    transaction_id: str,
-    user_address: str,
-    max_time: str,
-    distance: str,
-    custom_message: str
-) -> List[Dict]:
-    """
-    Generate POIs using Gemini based on user constraints.
-
-    Args:
-        transaction_id: UUID of the tour
-        user_address: User's starting location
-        max_time: Maximum time constraint
-        distance: Maximum distance constraint
-        custom_message: User's custom preferences/theme
-
-    Returns:
-        List of generated POI dictionaries
-    """
-    logger.info(f"🔍 Geocoding address: {user_address}")
-    _update_tour_status(transaction_id, "geocoding")
-
-    _update_tour_status(transaction_id, "generating_pois")
-    logger.info(f"🤖 Generating POIs with Gemini...")
-
-    pois_data = await generate_pois(
-        address=user_address,
-        time_constraint=max_time,
-        distance_constraint=distance,
-        user_custom_info=custom_message
-    )
-    logger.info(f"✅ Generated {len(pois_data)} POIs")
-
-    return pois_data
-
-
-def _verify_and_store_pois(transaction_id: str, pois_data: List[Dict]) -> List[Dict]:
-    """
-    Verify POIs using Google Maps and store them in the database.
-
-    Args:
-        transaction_id: UUID of the tour
-        pois_data: List of POI dictionaries to verify
-
-    Returns:
-        List of verified POI dictionaries
-
-    Raises:
-        ValueError: If no POIs were verified
-    """
-    _update_tour_status(transaction_id, "filtering_pois")
-    logger.info(f"🔍 Verifying POIs with Google Maps...")
-
-    verified_pois_list = verify_multiple_pois(pois_data)
-    logger.info(f"✅ Verified {len(verified_pois_list)} out of {len(pois_data)} POIs")
-
-    # Store filtered POIs in database
-    tour_repo.update_tour_by_uuid(
-        tour_uuid=transaction_id,
-        updates={"filtered_candidate_poi_list": verified_pois_list}
-    )
-
-    if not verified_pois_list:
-        logger.error(f"❌ No POIs were verified for transaction {transaction_id}")
-        _update_tour_status(transaction_id, "failed")
-        tour_repo.update_tour_by_uuid(
-            tour_uuid=transaction_id,
-            updates={"error_message": "No POIs could be verified in the specified area"}
-        )
-        raise ValueError("No POIs could be verified in the specified area")
-
-    return verified_pois_list
-
-
-async def _order_pois_with_retry(
-    transaction_id: str,
-    verified_pois_list: List[Dict],
-    user_address: str,
-    max_time: str,
-    distance: str,
-    theme: str
-) -> List[Dict]:
-    """
-    Order POIs optimally with retry logic to meet constraints.
-
-    Args:
-        transaction_id: UUID of the tour
-        verified_pois_list: List of verified POI dictionaries
-        user_address: User's starting location
-        max_time: Maximum time constraint
-        distance: Maximum distance constraint
-        theme: Tour theme
-
-    Returns:
-        List of ordered POI dictionaries
-    """
-    _update_tour_status(transaction_id, "generating_tour")
-    logger.info(f"🗺️ Ordering POIs for optimal tour...")
-
-    max_retries = 4
-    current_pois = verified_pois_list
-    feedback = None
-    ordered_pois = []
-
-    for attempt in range(max_retries):
-        logger.info(f"🔄 Tour generation attempt {attempt + 1}/{max_retries}")
-
-        # Use Gemini to order the POIs optimally
-        ordered_pois = await order_pois_for_tour(
-            pois=current_pois,
-            user_address=user_address,
-            max_time=max_time,
-            distance=distance,
-            theme=theme,
-            feedback=feedback
-        )
-
-        # Prepare waypoints for route calculation
-        waypoints = [poi.get('poi_address', '') for poi in ordered_pois]
-
-        # Calculate route metrics
-        metrics = calculate_route_metrics(user_address, waypoints)
-        total_distance_km = metrics.get('total_distance_km', float('inf'))
-        total_duration_min = metrics.get('total_duration_minutes', float('inf'))
-
-        logger.info(f"📊 Route metrics: {total_distance_km:.2f} km, {total_duration_min:.0f} min")
-
-        # Parse constraints
-        limit_distance = parse_distance_to_km(distance)
-        limit_time = parse_time_to_minutes(max_time)
-
-        # Check if constraints are met (with 10% buffer)
-        if total_distance_km <= limit_distance * 1.1 and total_duration_min <= limit_time * 1.1:
-            logger.info("✅ Tour constraints met!")
-            break
-        else:
-            logger.warning(f"⚠️ Constraints exceeded (attempt {attempt + 1})")
-            feedback = (
-                f"Previous plan exceeded constraints. "
-                f"Distance: {total_distance_km:.2f}km (limit: {limit_distance}km), "
-                f"Duration: {total_duration_min:.0f}min (limit: {limit_time}min). "
-                f"Reduce POIs or choose closer ones."
-            )
-
-            if attempt == max_retries - 1:
-                logger.warning("⚠️ Max retries reached, using best effort result")
-
-    return ordered_pois
-
-
-def _enrich_poi_with_details(ordered_poi: Dict) -> Dict:
-    """
-    Enrich a single POI with Google Maps details.
-
-    Args:
-        ordered_poi: Dictionary containing POI information with keys:
-                     'poi_title', 'poi_address', 'order', 'story_keywords'
-
-    Returns:
-        Dictionary with enriched POI data including Google Maps details
-    """
-    poi_title = ordered_poi.get('poi_title', '')
-    poi_address = ordered_poi.get('poi_address', '')
-    order = ordered_poi.get('order', 0)
-    story_keywords = ordered_poi.get('story_keywords', None)
-
-    # Get Google Maps details
-    place_details = get_place_details(poi_title, poi_address)
-
-    if place_details:
-        gps_location = place_details.get('gps_location')
-        photo_url = place_details.get('photo_url')
-
-        return {
-            "order": order,
-            "google_place_id": place_details.get('google_place_id', ''),
-            "google_place_img_url": photo_url if photo_url else None,
-            "address": place_details.get('formatted_address', poi_address),
-            "google_maps_name": place_details.get('google_maps_name', poi_title),
-            "story": None,
-            "pin_image_url": None,
-            "story_keywords": story_keywords,
-            "gps_location": gps_location if gps_location else None
-        }
-    else:
-        return {
-            "order": order,
-            "google_place_id": "",
-            "google_place_img_url": None,
-            "address": poi_address,
-            "google_maps_name": poi_title,
-            "story": None,
-            "pin_image_url": None,
-            "story_keywords": story_keywords,
-            "gps_location": None
-        }
-
-
-def _enrich_pois_with_details(ordered_pois: List[Dict]) -> List[Dict]:
-    """
-    Enrich all ordered POIs with Google Maps details.
-
-    Args:
-        ordered_pois: List of ordered POI dictionaries
-
-    Returns:
-        List of enriched POI dictionaries
-    """
-    logger.info(f"📍 Enriching {len(ordered_pois)} POIs with Google Maps details...")
-    enriched_pois = [_enrich_poi_with_details(poi) for poi in ordered_pois]
-    return enriched_pois
-
-
-def _finalize_tour(transaction_id: str, enriched_pois: List[Dict]):
-    """
-    Finalize tour by updating database with enriched POIs and marking as completed.
-
-    Args:
-        transaction_id: UUID of the tour
-        enriched_pois: List of enriched POI dictionaries
-    """
-    tour_repo.update_tour_by_uuid(
-        tour_uuid=transaction_id,
-        updates={
-            "pois": enriched_pois,
-            "status_code": "completed"
-        }
-    )
-
-    logger.info(f"✅ Tour generation completed successfully for transaction {transaction_id}")
-    logger.info(f"   Final tour has {len(enriched_pois)} POIs")
-
-
-def _handle_tour_generation_error(transaction_id: str, error: Exception):
-    """
-    Handle errors during tour generation by updating tour status.
-
-    Args:
-        transaction_id: UUID of the tour
-        error: Exception that occurred during generation
-    """
-    logger.error(f"❌ Error in background tour generation for {transaction_id}: {str(error)}")
-    logger.exception(error)
-
-    tour_repo.update_tour_by_uuid(
-        tour_uuid=transaction_id,
-        updates={
-            "status_code": "failed",
-            "error_message": str(error)
-        }
-    )
+tour_service = TourService(tour_repo)
+poi_service = POIService()
+tour_orchestration_service = TourOrchestrationService(poi_service, tour_service)
 
 
 async def process_tour_generation_background(
@@ -312,44 +49,17 @@ async def process_tour_generation_background(
         custom_message: User's custom preferences/theme
     """
     try:
-        logger.info(f"🚀 Starting background tour generation for transaction {transaction_id}")
-
-        # Step 1: Generate POIs using Gemini
-        pois_data = await _generate_pois_step(
+        await tour_orchestration_service.process_tour_generation(
             transaction_id=transaction_id,
             user_address=user_address,
             max_time=max_time,
             distance=distance,
             custom_message=custom_message
         )
-
-        # Step 2: Verify POIs using Google Maps
-        verified_pois_list = _verify_and_store_pois(transaction_id, pois_data)
-
-        # Step 3: Get tour theme
-        tour_data = tour_repo.get_tour_by_uuid(transaction_id)
-        if tour_data is None:
-            raise ValueError(f"Tour {transaction_id} not found during background generation")
-        theme = tour_data.get('theme', custom_message)
-
-        # Step 4: Order POIs optimally with retry logic
-        ordered_pois = await _order_pois_with_retry(
-            transaction_id=transaction_id,
-            verified_pois_list=verified_pois_list,
-            user_address=user_address,
-            max_time=max_time,
-            distance=distance,
-            theme=theme
-        )
-
-        # Step 5: Enrich POIs with Google Maps details
-        enriched_pois = _enrich_pois_with_details(ordered_pois)
-
-        # Step 6: Finalize tour
-        _finalize_tour(transaction_id, enriched_pois)
-
     except Exception as e:
-        _handle_tour_generation_error(transaction_id, e)
+        logger.error(f"❌ Error in background tour generation for {transaction_id}: {str(e)}")
+        logger.exception(e)
+        tour_service.mark_tour_failed(transaction_id, str(e))
 
 
 class ThemeOptionsRequest(BaseModel):
@@ -666,7 +376,7 @@ async def generate_poi_endpoint(request: GeneratePOIRequest):
         )
 
         # Step 2: Generate POIs using Gemini API
-        pois_data = await generate_pois(
+        pois_data = await poi_service.generate_pois(
             address=user_address,
             time_constraint=request.constraints.time,
             distance_constraint=request.constraints.distance,
@@ -726,7 +436,7 @@ async def filter_poi_endpoint(request: FilterPOIRequest):
         total_input = len(pois_dict)
 
         # Verify POIs using Google Maps Places API
-        verified_pois_dict = verify_multiple_pois(pois_dict)
+        verified_pois_dict = poi_service.verify_pois(pois_dict)
 
         # Convert verified POIs back to POI model objects
         verified_pois = [POI(**poi) for poi in verified_pois_dict]
@@ -735,9 +445,9 @@ async def filter_poi_endpoint(request: FilterPOIRequest):
         total_verified = len(verified_pois)
 
         # Update tour with filtered POIs
-        tour_repo.update_tour_by_uuid(
-            tour_uuid=request.transaction_id,
-            updates={"filtered_candidate_poi_list": [poi.model_dump() for poi in verified_pois]}
+        tour_service.update_filtered_pois(
+            request.transaction_id,
+            [poi.model_dump() for poi in verified_pois]
         )
 
         return FilterPOIResponse(
@@ -802,21 +512,16 @@ async def guardrail_validation(request: GuardrailRequest, background_tasks: Back
             custom_message=request.constraints.custom
         )
 
-        # Prepare tour data for database (address is now part of constraints)
-        tour_data = {
-            "id": transaction_id,
-            "user_address": user_address,
-            "theme": request.constraints.custom,
-            "status_code": "valid" if is_valid else "invalid",
-            "max_distance_km": parse_distance_to_km(request.constraints.distance),
-            "max_duration_minutes": parse_time_to_minutes(request.constraints.max_time),
-            "pois": [],
-            "storyline_keywords": "",
-            "constraints": request.constraints.model_dump()  # This now includes address
-        }
-
         # Store in tours table
-        tour_repo.add_tour(tour_data)
+        tour_service.create_tour(
+            transaction_id=transaction_id,
+            user_address=user_address,
+            theme=request.constraints.custom,
+            status_code="valid" if is_valid else "invalid",
+            max_time=request.constraints.max_time,
+            distance=request.constraints.distance,
+            constraints=request.constraints.model_dump()
+        )
 
         # If validation passed, start background tour generation process
         if is_valid:
@@ -873,7 +578,7 @@ async def generate_tour(request: GenerateTourRequest):
     """
     try:
         # Look up the tour in database using transaction_id
-        tour_data = tour_repo.get_tour_by_uuid(request.transaction_id)
+        tour_data = tour_service.get_tour(request.transaction_id)
 
         if tour_data is None:
             raise HTTPException(
@@ -897,107 +602,19 @@ async def generate_tour(request: GenerateTourRequest):
                 status_code=400,
                 detail="No filtered POIs found for this tour. Please call /filter_poi first."
             )
-            
-        # Convert POI models to dictionaries if they aren't already
-        pois_dict = filtered_pois
 
-        # Use Gemini to order the POIs optimally
-        max_retries = 3
-        current_pois = pois_dict
-        feedback = None
-        
-        ordered_pois = []
-        
-        for attempt in range(max_retries):
-            print(f"🔄 Tour generation attempt {attempt + 1}/{max_retries}")
-            
-            # Use Gemini to order the POIs optimally
-            ordered_pois = await order_pois_for_tour(
-                pois=current_pois,
-                user_address=user_address,
-                max_time=max_time,
-                distance=distance,
-                theme=theme,
-                feedback=feedback
-            )
-            
-            # Prepare waypoints for route calculation (tour should start and end at user_address)
-            waypoints = []
-            for poi in ordered_pois:
-                waypoints.append(poi.get('poi_address', ''))
-            
-            # Calculate route metrics (origin and destination are both user_address)
-            metrics = calculate_route_metrics(user_address, waypoints)
-            total_distance_km = metrics.get('total_distance_km', float('inf'))
-            total_duration_min = metrics.get('total_duration_minutes', float('inf'))
-            
-            print(f"   📊 Metrics: {total_distance_km:.2f} km, {total_duration_min:.0f} min")
-            
-            # Check constraints
-            # Parse limits using helper functions
-            limit_distance = parse_distance_to_km(distance)
-            limit_time = parse_time_to_minutes(max_time)
-
-            # Allow some buffer (e.g. 10%)
-            if total_distance_km <= limit_distance * 1.1 and total_duration_min <= limit_time * 1.1:
-                print("   ✅ Constraints met!")
-                break
-            else:
-                print("   ❌ Constraints exceeded.")
-                feedback = f"The previous plan was too long. Actual distance: {total_distance_km:.2f} km (Limit: {limit_distance} km). Actual duration: {total_duration_min:.0f} min (Limit: {limit_time} min). Please reduce the number of stops or choose closer ones."
-                
-                # If this was the last attempt, we still use the result but maybe log/warn
-                if attempt == max_retries - 1:
-                    print("   ⚠️ Max retries reached. Returning best effort.")
-
-        # Enrich each POI with Google Maps details
-        enriched_pois = []
-        for ordered_poi in ordered_pois:
-            poi_title = ordered_poi.get('poi_title', '')
-            poi_address = ordered_poi.get('poi_address', '')
-            order = ordered_poi.get('order', 0)
-            story_keywords = ordered_poi.get('story_keywords', None)
-
-            # Get Google Maps details (place_id, name, GPS location, photo URL)
-            place_details = get_place_details(poi_title, poi_address)
-
-            if place_details:
-                # Extract GPS location and photo URL if available
-                gps_location = place_details.get('gps_location')
-                photo_url = place_details.get('photo_url')
-
-                poi_entry = {
-                    "order": order,
-                    "google_place_id": place_details.get('google_place_id', ''),
-                    "google_place_img_url": photo_url if photo_url else None,
-                    "address": place_details.get('formatted_address', poi_address),
-                    "google_maps_name": place_details.get('google_maps_name', poi_title),
-                    "story": None,
-                    "pin_image_url": None,
-                    "story_keywords": story_keywords,
-                    "gps_location": gps_location if gps_location else None
-                }
-            else:
-                # Fallback if place details not found
-                poi_entry = {
-                    "order": order,
-                    "google_place_id": "",
-                    "google_place_img_url": None,
-                    "address": poi_address,
-                    "google_maps_name": poi_title,
-                    "story": None,
-                    "pin_image_url": None,
-                    "story_keywords": story_keywords,
-                    "gps_location": None
-                }
-
-            enriched_pois.append(poi_entry)
+        # Generate tour from filtered POIs (order, enrich, and finalize)
+        enriched_pois = await tour_orchestration_service.generate_tour_from_filtered_pois(
+            transaction_id=request.transaction_id,
+            filtered_pois=filtered_pois,
+            user_address=user_address,
+            max_time=max_time,
+            distance=distance,
+            theme=theme
+        )
 
         # Update the tour in database with the enriched POIs
-        updated = tour_repo.update_tour_by_uuid(
-            tour_uuid=request.transaction_id,
-            updates={"pois": enriched_pois}
-        )
+        updated = tour_service.update_tour_pois(request.transaction_id, enriched_pois)
 
         if not updated:
             raise HTTPException(
@@ -1048,7 +665,7 @@ async def get_tour_by_id(tour_id: UUID, is_dummy: bool = False):
         tour_uuid_str = str(tour_id)
         
         # Get tour from database
-        tour_data = tour_repo.get_tour_by_uuid(tour_uuid_str)
+        tour_data = tour_service.get_tour(tour_uuid_str)
         
         if tour_data is None:
             raise HTTPException(
