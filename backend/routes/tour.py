@@ -2,12 +2,12 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
-from datetime import datetime
 import logging
 from services.gemini_service import generate_theme_options, generate_pois, validate_user_request_guardrail, order_pois_for_tour
-from services.maps_service import get_address_from_coordinates, verify_multiple_pois, get_place_details, calculate_route_metrics
+from services.maps_service import get_address_from_coordinates, verify_multiple_pois, get_place_details, calculate_route_metrics, get_coordinates_from_address
 from database.database_base import DatabaseBase
 from database.tour import TourRepository
+from helpers.tour_helpers import parse_time_to_minutes, parse_distance_to_km
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -52,12 +52,7 @@ async def process_tour_generation_background(
             updates={"status_code": "geocoding"}
         )
 
-        # Step 1: Geocode address to get coordinates
-        from services.maps_service import get_coordinates_from_address
-
-        logger.info(f"📍 Geocoding address: {user_address}")
-        latitude, longitude = get_coordinates_from_address(user_address)
-        logger.info(f"✅ Coordinates obtained: {latitude}, {longitude}")
+        
 
         # Update status: generating POIs
         tour_repo.update_tour_by_uuid(
@@ -152,13 +147,8 @@ async def process_tour_generation_background(
             logger.info(f"📊 Route metrics: {total_distance_km:.2f} km, {total_duration_min:.0f} min")
 
             # Parse constraints
-            limit_distance = float(distance.split()[0]) if isinstance(distance, str) and ' ' in distance else 5.0
-            limit_time = 120  # Default
-            if isinstance(max_time, str):
-                if 'hour' in max_time:
-                    limit_time = float(max_time.split()[0]) * 60
-                elif 'min' in max_time:
-                    limit_time = float(max_time.split()[0])
+            limit_distance = parse_distance_to_km(distance)
+            limit_time = parse_time_to_minutes(max_time)
 
             # Check if constraints are met (with 10% buffer)
             if total_distance_km <= limit_distance * 1.1 and total_duration_min <= limit_time * 1.1:
@@ -687,32 +677,6 @@ async def guardrail_validation(request: GuardrailRequest, background_tasks: Back
             custom_message=request.constraints.custom
         )
 
-        # Helper function to parse time to minutes
-        def parse_time_to_minutes(time_str: str) -> int:
-            time_lower = time_str.lower()
-            if 'hour' in time_lower:
-                hours = float(''.join(filter(lambda x: x.isdigit() or x == '.', time_lower.split('hour')[0])))
-                return int(hours * 60)
-            elif 'min' in time_lower:
-                return int(''.join(filter(str.isdigit, time_lower)))
-            elif 'day' in time_lower:
-                days = float(''.join(filter(lambda x: x.isdigit() or x == '.', time_lower.split('day')[0])))
-                return int(days * 24 * 60)
-            return 120  # Default 2 hours
-
-        # Helper function to parse distance to km
-        def parse_distance_to_km(distance_str: str) -> float:
-            distance_lower = distance_str.lower()
-            if 'km' in distance_lower or 'kilometer' in distance_lower:
-                return float(''.join(filter(lambda x: x.isdigit() or x == '.', distance_lower.split('km')[0])))
-            elif 'mile' in distance_lower:
-                miles = float(''.join(filter(lambda x: x.isdigit() or x == '.', distance_lower.split('mile')[0])))
-                return miles * 1.60934
-            elif 'm' in distance_lower and 'km' not in distance_lower:
-                meters = float(''.join(filter(str.isdigit, distance_lower)))
-                return meters / 1000
-            return 5.0  # Default 5 km
-
         # Prepare tour data for database (address is now part of constraints)
         tour_data = {
             "id": transaction_id,
@@ -720,7 +684,6 @@ async def guardrail_validation(request: GuardrailRequest, background_tasks: Back
             "status_code": "valid" if is_valid else "invalid",
             "max_distance_km": parse_distance_to_km(request.constraints.distance),
             "max_duration_minutes": parse_time_to_minutes(request.constraints.max_time),
-            "introduction": f"Tour request at {user_address}",
             "pois": [],
             "storyline_keywords": user_address,
             "constraints": request.constraints.model_dump()  # This now includes address
@@ -845,17 +808,9 @@ async def generate_tour(request: GenerateTourRequest):
             print(f"   📊 Metrics: {total_distance_km:.2f} km, {total_duration_min:.0f} min")
             
             # Check constraints
-            # Parse limits (assuming they are stored as strings like "5 km" or numbers in DB)
-            # Helper to parse limit from string if needed, or use the value if already float/int
-            limit_distance = float(distance.split()[0]) if isinstance(distance, str) and ' ' in distance else (float(distance) if distance else 5.0)
-            limit_time = 120 # Default
-            if isinstance(max_time, str):
-                 if 'hour' in max_time:
-                     limit_time = float(max_time.split()[0]) * 60
-                 elif 'min' in max_time:
-                     limit_time = float(max_time.split()[0])
-            else:
-                limit_time = int(max_time) if max_time else 120
+            # Parse limits using helper functions
+            limit_distance = parse_distance_to_km(distance)
+            limit_time = parse_time_to_minutes(max_time)
 
             # Allow some buffer (e.g. 10%)
             if total_distance_km <= limit_distance * 1.1 and total_duration_min <= limit_time * 1.1:
