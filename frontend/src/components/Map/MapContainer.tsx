@@ -130,21 +130,39 @@ const MapContent = ({ showTourContent = true, pois, activePoiIndex, userLocation
 
     // Fly to active POI when it changes (only when showing tour content)
     useEffect(() => {
-        if (showTourContent && map && activePoiIndex !== null && activePoiIndex !== undefined && pois && pois.length > 0) {
-            // Sort POIs by order to match the sorted array in TourView
-            const sortedPois = [...pois].sort((a, b) => (a.order || 0) - (b.order || 0));
-            if (activePoiIndex < sortedPois.length) {
-                const activePoi = sortedPois[activePoiIndex];
-                if (activePoi?.gps_location && activePoi.gps_location.lat && activePoi.gps_location.lng) {
+        if (showTourContent && map && pois && pois.length > 0) {
+            // If activePoiIndex is null, we're on the introduction - pan to first POI
+            if (activePoiIndex === null) {
+                // Sort POIs by order to get the first POI
+                const sortedPois = [...pois].sort((a, b) => (a.order || 0) - (b.order || 0));
+                const firstPoi = sortedPois[0];
+                if (firstPoi?.gps_location && firstPoi.gps_location.lat && firstPoi.gps_location.lng) {
                     animateCameraTo({
                         center: {
-                            lat: activePoi.gps_location.lat,
-                            lng: activePoi.gps_location.lng,
+                            lat: firstPoi.gps_location.lat,
+                            lng: firstPoi.gps_location.lng,
                         },
                         zoom: 17,
                         tilt: 45,
                         heading: 0
                     });
+                }
+            } else if (activePoiIndex !== null && activePoiIndex !== undefined) {
+                // Sort POIs by order to match the sorted array in TourView
+                const sortedPois = [...pois].sort((a, b) => (a.order || 0) - (b.order || 0));
+                if (activePoiIndex < sortedPois.length) {
+                    const activePoi = sortedPois[activePoiIndex];
+                    if (activePoi?.gps_location && activePoi.gps_location.lat && activePoi.gps_location.lng) {
+                        animateCameraTo({
+                            center: {
+                                lat: activePoi.gps_location.lat,
+                                lng: activePoi.gps_location.lng,
+                            },
+                            zoom: 17,
+                            tilt: 45,
+                            heading: 0
+                        });
+                    }
                 }
             }
         } else if (showTourContent && map && currentStop && activePoiIndex === undefined) {

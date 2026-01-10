@@ -5,14 +5,69 @@ import type { Tour, Poi } from '../../client/types.gen';
 import MapContainer from '../Map/MapContainer';
 import TourDrawer from './TourDrawer';
 import AudioPlayer, { type AudioPlayerRef } from '../Audio/AudioPlayer';
+import { useOnboarding } from '../../context/OnboardingContext';
 
 const TourView: React.FC = () => {
     const { tourId, stopOrder } = useParams<{ tourId: string; stopOrder?: string }>();
     const navigate = useNavigate();
+    const { userLocation: userLocationFromContext } = useOnboarding();
     const [tour, setTour] = useState<Tour | null>(null);
     const [currentStopIndex, setCurrentStopIndex] = useState<number | null>(null); // null means introduction
     const [currentAudioText, setCurrentAudioText] = useState<string>('');
+    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
     const audioPlayerRef = useRef<AudioPlayerRef>(null);
+
+    // Get and watch user location
+    useEffect(() => {
+        if (!navigator.geolocation) {
+            console.warn('Geolocation is not supported by this browser.');
+            return;
+        }
+
+        const geoOptions = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        };
+
+        // Convert context location format to map format if available
+        if (userLocationFromContext.latitude !== null && userLocationFromContext.longitude !== null) {
+            setUserLocation({
+                lat: userLocationFromContext.latitude,
+                lng: userLocationFromContext.longitude
+            });
+        }
+
+        // Get current position immediately
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                setUserLocation({ lat: latitude, lng: longitude });
+                console.log('User location obtained in TourView:', { latitude, longitude });
+            },
+            (error) => {
+                console.error('Error getting initial user location in TourView:', error);
+            },
+            geoOptions
+        );
+
+        // Watch for position updates
+        const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                setUserLocation({ lat: latitude, lng: longitude });
+                console.log('User location updated in TourView:', { latitude, longitude });
+            },
+            (error) => {
+                console.error('Error watching user location in TourView:', error);
+            },
+            geoOptions
+        );
+
+        return () => {
+            navigator.geolocation.clearWatch(watchId);
+        };
+    }, [userLocationFromContext]);
 
     // Fetch tour data
     useEffect(() => {
@@ -132,6 +187,7 @@ const TourView: React.FC = () => {
                     showTourContent={true} 
                     pois={tour?.pois || []}
                     activePoiIndex={currentStopIndex}
+                    userLocation={userLocation}
                 />
             </div>
 
