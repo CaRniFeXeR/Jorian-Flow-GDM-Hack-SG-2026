@@ -169,6 +169,7 @@ async def process_tour_generation_background(
             poi_title = ordered_poi.get('poi_title', '')
             poi_address = ordered_poi.get('poi_address', '')
             order = ordered_poi.get('order', 0)
+            story_keywords = ordered_poi.get('story_keywords', None)
 
             # Get Google Maps details
             place_details = get_place_details(poi_title, poi_address)
@@ -185,7 +186,7 @@ async def process_tour_generation_background(
                     "google_maps_name": place_details.get('google_maps_name', poi_title),
                     "story": None,
                     "pin_image_url": None,
-                    "story_keywords": None,
+                    "story_keywords": story_keywords,
                     "gps_location": gps_location if gps_location else None
                 }
             else:
@@ -197,7 +198,7 @@ async def process_tour_generation_background(
                     "google_maps_name": poi_title,
                     "story": None,
                     "pin_image_url": None,
-                    "story_keywords": None,
+                    "story_keywords": story_keywords,
                     "gps_location": None
                 }
 
@@ -833,6 +834,7 @@ async def generate_tour(request: GenerateTourRequest):
             poi_title = ordered_poi.get('poi_title', '')
             poi_address = ordered_poi.get('poi_address', '')
             order = ordered_poi.get('order', 0)
+            story_keywords = ordered_poi.get('story_keywords', None)
 
             # Get Google Maps details (place_id, name, GPS location, photo URL)
             place_details = get_place_details(poi_title, poi_address)
@@ -841,16 +843,16 @@ async def generate_tour(request: GenerateTourRequest):
                 # Extract GPS location and photo URL if available
                 gps_location = place_details.get('gps_location')
                 photo_url = place_details.get('photo_url')
-                
+
                 poi_entry = {
                     "order": order,
                     "google_place_id": place_details.get('google_place_id', ''),
                     "google_place_img_url": photo_url if photo_url else None,
                     "address": place_details.get('formatted_address', poi_address),
                     "google_maps_name": place_details.get('google_maps_name', poi_title),
-                    "story": None,  # To be filled later
-                    "pin_image_url": None,  # To be filled later
-                    "story_keywords": None,  # To be filled later
+                    "story": None,
+                    "pin_image_url": None,
+                    "story_keywords": story_keywords,
                     "gps_location": gps_location if gps_location else None
                 }
             else:
@@ -863,7 +865,7 @@ async def generate_tour(request: GenerateTourRequest):
                     "google_maps_name": poi_title,
                     "story": None,
                     "pin_image_url": None,
-                    "story_keywords": None,
+                    "story_keywords": story_keywords,
                     "gps_location": None
                 }
 
