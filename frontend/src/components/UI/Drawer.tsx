@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { motion, PanInfo, useAnimation } from 'framer-motion';
+import { motion, useAnimation } from 'framer-motion';
+import type { PanInfo } from 'framer-motion';
 import AudioControls from '../Audio/AudioControls';
 
 interface DrawerProps {
@@ -22,7 +23,7 @@ const Drawer: React.FC<DrawerProps> = ({ currentStop, isPlaying, onTogglePlay, o
         controls.start(isOpen ? "closed" : "open");
     };
 
-    const onDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const onDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
         // If dragged up significantly, open
         if (info.offset.y < -100 && !isOpen) {
             setIsOpen(true);

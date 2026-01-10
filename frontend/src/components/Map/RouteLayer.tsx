@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useMap, MapsComponent } from '@vis.gl/react-google-maps';
+import { useMap } from '@vis.gl/react-google-maps';
 
 interface RouteLayerProps {
     stops: {

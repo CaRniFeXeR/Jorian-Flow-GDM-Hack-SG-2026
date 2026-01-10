@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import MapContainer from './components/Map/MapContainer';
-import Drawer from './components/UI/Drawer';
+import Drawer from './components/UI/Drawer'; // Import Drawer component
 import tourData from './data/tour.json';
 
-const API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY'; // Placeholder
+const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 function App() {
   const [currentStopIndex, setCurrentStopIndex] = useState(0);
