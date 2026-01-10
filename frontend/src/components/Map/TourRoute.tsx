@@ -1,37 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { useMap } from '@vis.gl/react-google-maps';
+import type { TourStop } from '../../data/tourData';
 
-interface RouteLayerProps {
-    stops: {
-        id: number;
-        location: { lat: number; lng: number };
-    }[];
+interface TourRouteProps {
+    stops: TourStop[];
 }
 
-const RouteLayer: React.FC<RouteLayerProps> = ({ stops }) => {
+const TourRoute: React.FC<TourRouteProps> = ({ stops }) => {
     const map = useMap();
     const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
 
     useEffect(() => {
         if (!map) return;
 
-        // Initialize DirectionsRenderer if not already
         const dr = new google.maps.DirectionsRenderer({
             map,
-            suppressMarkers: true, // We use our own markers
+            suppressMarkers: true,
             polylineOptions: {
-                strokeColor: '#2563eb',
-                strokeOpacity: 0, // Hide the solid line
+                strokeColor: '#4285F4',
+                strokeOpacity: 0,
                 strokeWeight: 0,
                 icons: [{
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
                         fillOpacity: 1,
                         scale: 3,
-                        fillColor: '#2563eb',
+                        fillColor: '#4285F4',
                     },
                     offset: '0',
-                    repeat: '10px' // Dotted line effect
+                    repeat: '12px'
                 }]
             }
         });
@@ -48,15 +45,14 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ stops }) => {
 
         const directionsService = new google.maps.DirectionsService();
 
-        // Create waypoints (excluding start and end)
         const waypoints = stops.slice(1, -1).map(stop => ({
-            location: stop.location,
+            location: stop.position,
             stopover: true
         }));
 
         directionsService.route({
-            origin: stops[0].location,
-            destination: stops[stops.length - 1].location,
+            origin: stops[0].position,
+            destination: stops[stops.length - 1].position,
             waypoints: waypoints,
             travelMode: google.maps.TravelMode.WALKING
         }, (result, status) => {
@@ -64,7 +60,6 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ stops }) => {
                 directionsRenderer.setDirections(result);
             } else {
                 console.error(`Directions request failed: ${status}`);
-                // Fallback: draw straight lines if directions fail (optional)
             }
         });
     }, [directionsRenderer, stops]);
@@ -72,4 +67,4 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ stops }) => {
     return null;
 };
 
-export default RouteLayer;
+export default TourRoute;
