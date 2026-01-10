@@ -28,7 +28,7 @@ def get_address_from_coordinates(latitude: float, longitude: float) -> str:
         gmaps = googlemaps.Client(key=api_key)
 
         # Perform reverse geocoding
-        result = gmaps.reverse_geocode((latitude, longitude))
+        result = gmaps.reverse_geocode((latitude, longitude))  # type: ignore[attr-defined]
 
         if not result or len(result) == 0:
             raise Exception("No address found for the given coordinates")
@@ -68,7 +68,7 @@ def get_detailed_location_info(latitude: float, longitude: float) -> dict:
 
     try:
         gmaps = googlemaps.Client(key=api_key)
-        result = gmaps.reverse_geocode((latitude, longitude))
+        result = gmaps.reverse_geocode((latitude, longitude))  # type: ignore[attr-defined]
 
         if not result or len(result) == 0:
             raise Exception("No location information found for the given coordinates")
@@ -120,7 +120,7 @@ def verify_poi_exists(poi_title: str, poi_address: str) -> bool:
         gmaps = googlemaps.Client(key=api_key)
 
         # Geocode the address to verify it exists
-        geocode_result = gmaps.geocode(poi_address)
+        geocode_result = gmaps.geocode(poi_address)  # type: ignore[attr-defined]
 
         if not geocode_result or len(geocode_result) == 0:
             print(f"❌ Address not found: {poi_address}")

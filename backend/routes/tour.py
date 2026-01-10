@@ -1,10 +1,18 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, List
+from uuid import UUID
 from services.gemini_service import generate_theme_options, generate_pois
 from services.maps_service import get_address_from_coordinates, verify_multiple_pois
+from database.database_base import DatabaseBase
+from database.tour import TourRepository
+from schemas.tour import Tour
 
 router = APIRouter()
+
+# Initialize Repository
+db_base = DatabaseBase("database/db.json")
+tour_repo = TourRepository(db_base)
 
 
 class ThemeOptionsRequest(BaseModel):
@@ -267,4 +275,61 @@ async def filter_poi_endpoint(request: FilterPOIRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Error filtering POIs: {str(e)}"
+        )
+
+
+@router.get("/{tour_id}", response_model=Tour)
+async def get_tour_by_id(tour_id: UUID):
+    """
+    Get a tour by its UUID.
+
+    This endpoint retrieves a fully typed tour object including all POIs
+    associated with the tour.
+
+    Args:
+        tour_id: UUID of the tour to retrieve
+
+    Returns:
+        Tour object with all details including POIs
+
+    Raises:
+        HTTPException: If the tour is not found or there's an error retrieving it
+    """
+    try:
+        # Convert UUID to string for database lookup
+        tour_uuid_str = str(tour_id)
+        
+        # Get tour from database
+        tour_data = tour_repo.get_tour_by_uuid(tour_uuid_str)
+        
+        if tour_data is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Tour with ID {tour_id} not found"
+            )
+        
+        # Convert database dict to Pydantic model
+        # The database might store UUID as string, so we ensure proper conversion
+        if 'id' in tour_data:
+            tour_data['id'] = UUID(tour_data['id']) if isinstance(tour_data['id'], str) else tour_data['id']
+        
+        # Ensure pois is a list if it exists
+        if 'pois' not in tour_data:
+            tour_data['pois'] = []
+        elif tour_data['pois'] is None:
+            tour_data['pois'] = []
+        
+        return Tour(**tour_data)
+    
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid tour ID format: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving tour: {str(e)}"
         )

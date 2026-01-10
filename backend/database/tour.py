@@ -24,6 +24,17 @@ class TourRepository:
         # Document is a dict subclass, cast to Dict for type checker
         return cast(Dict[str, Any], doc)
 
+    def get_tour_by_uuid(self, tour_uuid: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a tour by its UUID.
+        """
+        Tour = Query()
+        results = self.table.search(Tour.id == tour_uuid)
+        if not results:
+            return None
+        # Return the first matching tour
+        return cast(Dict[str, Any], results[0])
+
     def list_tours(self) -> List[Dict[str, Any]]:
         """
         List all tours in the database.
