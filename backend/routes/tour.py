@@ -115,6 +115,9 @@ async def process_tour_generation_background(
 
         # Get tour data to retrieve theme
         tour_data = tour_repo.get_tour_by_uuid(transaction_id)
+        if tour_data is None:
+            logger.error(f"❌ Tour {transaction_id} not found during background generation")
+            return
         theme = tour_data.get('theme', custom_message)
 
         # Use retry logic similar to generate_tour endpoint
@@ -136,12 +139,12 @@ async def process_tour_generation_background(
                 feedback=feedback
             )
 
-            # Prepare waypoints for route calculation
-            waypoints = [user_address]  # Start
+            # Prepare waypoints for route calculation (tour should start and end at user_address)
+            waypoints = []
             for poi in ordered_pois:
                 waypoints.append(poi.get('poi_address', ''))
 
-            # Calculate route metrics
+            # Calculate route metrics (origin and destination are both user_address)
             metrics = calculate_route_metrics(user_address, waypoints)
             total_distance_km = metrics.get('total_distance_km', float('inf'))
             total_duration_min = metrics.get('total_duration_minutes', float('inf'))
@@ -254,6 +257,7 @@ class ThemeOptionsRequest(BaseModel):
 
 class ThemeOptionsResponse(BaseModel):
     themes: Dict[str, str]
+    address: str
 
     class Config:
         json_schema_extra = {
@@ -262,7 +266,8 @@ class ThemeOptionsResponse(BaseModel):
                     "Historical Heritage Tour": "Explore the colonial architecture and historical landmarks along this iconic street",
                     "Shopping & Fashion Tour": "Discover luxury brands and modern shopping centers in Singapore's premier retail district",
                     "Cultural Fusion Tour": "Experience the blend of traditional and contemporary Asian culture"
-                }
+                },
+                "address": "Orchard Road, Singapore"
             }
         }
 
@@ -304,9 +309,23 @@ class GeneratePOIRequest(BaseModel):
 from schemas.tour import Tour, POI
 
 
+class IntermediatePOI(BaseModel):
+    """Simplified POI model for intermediate representations before enrichment"""
+    poi_title: str
+    address: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "poi_title": "Singapore Botanic Gardens",
+                "address": "1 Cluny Rd, Singapore 259569"
+            }
+        }
+
+
 class GeneratePOIResponse(BaseModel):
     user_address: str
-    pois: List[POI]
+    pois: List[IntermediatePOI]
 
     class Config:
         json_schema_extra = {
@@ -380,29 +399,30 @@ class GuardrailConstraints(BaseModel):
     max_time: str
     distance: str
     custom: str
+    address: str
 
     class Config:
         json_schema_extra = {
             "example": {
                 "max_time": "3 hours",
                 "distance": "10 km",
-                "custom": "I want a chicken rice food tour"
+                "custom": "I want a chicken rice food tour",
+                "address": "Orchard Road, Singapore"
             }
         }
 
 
 class GuardrailRequest(BaseModel):
-    user_address: str
     constraints: GuardrailConstraints
 
     class Config:
         json_schema_extra = {
             "example": {
-                "user_address": "Orchard Road, Singapore",
                 "constraints": {
                     "max_time": "3 hours",
                     "distance": "10 km",
-                    "custom": "I want a chicken rice food tour"
+                    "custom": "I want a chicken rice food tour",
+                    "address": "Orchard Road, Singapore"
                 }
             }
         }
@@ -467,20 +487,32 @@ async def get_theme_options(request: ThemeOptionsRequest):
         HTTPException: If there's an error generating themes
     """
     try:
+        # Get geocoded address (either from request or by converting coordinates)
+        geocoded_address = None
+        if request.address:
+            geocoded_address = request.address
+        elif request.latitude is not None and request.longitude is not None:
+            geocoded_address = get_address_from_coordinates(request.latitude, request.longitude)
+        else:
+            raise ValueError("Either address or coordinates must be provided")
+        
         if request.use_dummy_data:
-            return ThemeOptionsResponse(themes={
-                "🏛️ Historical Heritage Tour": "Explore the colonial architecture and historical landmarks along this iconic street",
-                "🛍️ Shopping & Fashion Tour": "Discover luxury brands and modern shopping centers in Singapore's premier retail district",
-                "🎨 Cultural Fusion Tour": "Experience the blend of traditional and contemporary Asian culture"
-            })
+            return ThemeOptionsResponse(
+                themes={
+                    "🏛️ Historical Heritage Tour": "Explore the colonial architecture and historical landmarks along this iconic street",
+                    "🛍️ Shopping & Fashion Tour": "Discover luxury brands and modern shopping centers in Singapore's premier retail district",
+                    "🎨 Cultural Fusion Tour": "Experience the blend of traditional and contemporary Asian culture"
+                },
+                address=geocoded_address or "Orchard Road, Singapore"
+            )
 
-        # Generate themes using the service (service handles address conversion if coordinates are provided)
+        # Generate themes using the geocoded address (service will use it directly since we provide it)
         themes = await generate_theme_options(
-            address=request.address,
-            latitude=request.latitude,
-            longitude=request.longitude
+            address=geocoded_address,
+            latitude=None,
+            longitude=None
         )
-        return ThemeOptionsResponse(themes=themes)
+        return ThemeOptionsResponse(themes=themes, address=geocoded_address)
     except ValueError as e:
         raise HTTPException(
             status_code=400,
@@ -526,8 +558,16 @@ async def generate_poi_endpoint(request: GeneratePOIRequest):
             user_custom_info=request.constraints.user_custom_info
         )
 
-        # Convert to POI model objects
-        pois = [POI(**poi) for poi in pois_data]
+        # Convert to intermediate POI model objects
+        # Note: generate_pois returns dicts with 'poi_title' and 'address' keys
+        pois = []
+        for poi_data_item in pois_data:
+            # Handle both 'address' and 'poi_address' keys for compatibility
+            address = poi_data_item.get('address') or poi_data_item.get('poi_address', '')
+            pois.append(IntermediatePOI(
+                poi_title=poi_data_item.get('poi_title', ''),
+                address=address
+            ))
 
         return GeneratePOIResponse(
             user_address=user_address,
@@ -613,7 +653,7 @@ async def guardrail_validation(request: GuardrailRequest, background_tasks: Back
     would be valid, but the same request in New York would be invalid.
 
     The validation result is stored in the tours table with status_code indicating
-    whether the request passed validation.
+    whether the request passed validation. The address is stored as part of the constraints.
 
     If the request is valid, a background process is automatically started to:
     1. Generate POIs based on the address and constraints
@@ -623,7 +663,7 @@ async def guardrail_validation(request: GuardrailRequest, background_tasks: Back
     You can check the tour status by calling GET /{transaction_id}/{is_dummy}
 
     Args:
-        request: GuardrailRequest containing user address and constraints
+        request: GuardrailRequest containing constraints (including address)
         background_tasks: FastAPI background tasks handler
 
     Returns:
@@ -636,9 +676,12 @@ async def guardrail_validation(request: GuardrailRequest, background_tasks: Back
         # Generate a unique transaction ID (tour UUID)
         transaction_id = str(uuid4())
 
+        # Get address from constraints
+        user_address = request.constraints.address
+        
         # Validate the request using Gemini
         is_valid = await validate_user_request_guardrail(
-            user_address=request.user_address,
+            user_address=user_address,
             max_time=request.constraints.max_time,
             distance=request.constraints.distance,
             custom_message=request.constraints.custom
@@ -670,17 +713,17 @@ async def guardrail_validation(request: GuardrailRequest, background_tasks: Back
                 return meters / 1000
             return 5.0  # Default 5 km
 
-        # Prepare tour data for database
+        # Prepare tour data for database (address is now part of constraints)
         tour_data = {
             "id": transaction_id,
             "theme": request.constraints.custom,
             "status_code": "valid" if is_valid else "invalid",
             "max_distance_km": parse_distance_to_km(request.constraints.distance),
             "max_duration_minutes": parse_time_to_minutes(request.constraints.max_time),
-            "introduction": f"Tour request at {request.user_address}",
+            "introduction": f"Tour request at {user_address}",
             "pois": [],
-            "storyline_keywords": request.user_address,
-            "constraints": request.constraints.model_dump()
+            "storyline_keywords": user_address,
+            "constraints": request.constraints.model_dump()  # This now includes address
         }
 
         # Store in tours table
@@ -692,7 +735,7 @@ async def guardrail_validation(request: GuardrailRequest, background_tasks: Back
             background_tasks.add_task(
                 process_tour_generation_background,
                 transaction_id=transaction_id,
-                user_address=request.user_address,
+                user_address=user_address,
                 max_time=request.constraints.max_time,
                 distance=request.constraints.distance,
                 custom_message=request.constraints.custom
@@ -783,18 +826,18 @@ async def generate_tour(request: GenerateTourRequest):
             ordered_pois = await order_pois_for_tour(
                 pois=current_pois,
                 user_address=user_address,
-                max_time=request.constraints.max_time if hasattr(request, 'constraints') and hasattr(request.constraints, 'max_time') else max_time,
-                distance=request.constraints.distance if hasattr(request, 'constraints') and hasattr(request.constraints, 'distance') else distance,
+                max_time=max_time,
+                distance=distance,
                 theme=theme,
                 feedback=feedback
             )
             
-            # Prepare waypoints for route calculation
-            waypoints = [user_address] # Start
+            # Prepare waypoints for route calculation (tour should start and end at user_address)
+            waypoints = []
             for poi in ordered_pois:
                 waypoints.append(poi.get('poi_address', ''))
             
-            # Calculate route metrics
+            # Calculate route metrics (origin and destination are both user_address)
             metrics = calculate_route_metrics(user_address, waypoints)
             total_distance_km = metrics.get('total_distance_km', float('inf'))
             total_duration_min = metrics.get('total_duration_minutes', float('inf'))

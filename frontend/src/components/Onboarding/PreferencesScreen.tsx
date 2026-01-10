@@ -40,13 +40,16 @@ const PreferencesScreen: React.FC<PreferencesScreenProps> = ({ onPrev }) => {
 
         try {
             // Call guardrail validation API
+            // Address should be available from theme options response
+            const userAddress = onboardingData.address || 'Singapore'; // Fallback to Singapore if not set
+            
             const response = await guardrailValidationApiV1GuardrailPost({
                 body: {
-                    user_address: 'Singapore', // Default to Singapore for now
                     constraints: {
                         max_time: `${onboardingData.duration}`, // Convert to string format expected by API
                         distance: `${onboardingData.distance}`, // Convert to string format
                         custom: onboardingData.theme,
+                        address: userAddress,
                     },
                 },
                 baseUrl: 'http://localhost:8000',

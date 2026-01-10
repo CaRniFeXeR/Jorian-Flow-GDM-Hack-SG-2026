@@ -361,11 +361,11 @@ def get_place_details(poi_title: str, address: str) -> Optional[Dict]:
 
 def calculate_route_metrics(origin: str, waypoints: list, mode: str = 'walking') -> dict:
     """
-    Calculate total distance and duration for a route.
+    Calculate total distance and duration for a route that starts and ends at the origin.
 
     Args:
-        origin: Starting address
-        waypoints: List of waypoint addresses
+        origin: Starting and ending address (tour returns to this location)
+        waypoints: List of waypoint addresses to visit
         mode: Travel mode (walking, driving, bicycling, transit)
 
     Returns:
@@ -378,18 +378,18 @@ def calculate_route_metrics(origin: str, waypoints: list, mode: str = 'walking')
     try:
         gmaps = googlemaps.Client(key=api_key)
 
-        # Remove origin from waypoints if it's there (avoid loop)
-        clean_waypoints = [wp for wp in waypoints if wp != origin]
+        # Remove origin from waypoints if it's there
+        clean_waypoints = [wp for wp in waypoints if wp and wp != origin]
 
         if not clean_waypoints:
              return {"total_distance_km": 0.0, "total_duration_minutes": 0}
 
-        # Calculate directions
+        # Calculate directions: origin -> waypoints -> back to origin
         # Note: waypoints limit is 25 for standard plan
         directions_result = gmaps.directions(
             origin=origin,
-            destination=clean_waypoints[-1], # Last point is destination
-            waypoints=clean_waypoints[:-1], # Intermediate points
+            destination=origin,  # Tour ends back at starting location
+            waypoints=clean_waypoints,  # All POIs are intermediate waypoints
             mode=mode,
             optimize_waypoints=False # We want to verify the specific order
         )

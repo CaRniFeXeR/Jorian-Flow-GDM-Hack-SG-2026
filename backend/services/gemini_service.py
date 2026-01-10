@@ -263,7 +263,8 @@ async def validate_user_request_guardrail(user_address: str, max_time: str, dist
 
 User's Current Location: {user_address}
 
-User's Tour Request:
+User's Tour Request (Constraints):
+- Starting/Ending Location (Address): {user_address}
 - Maximum Time Available: {max_time}
 - Maximum Distance Willing to Travel: {distance}
 - Custom Preferences/Request: {custom_message}
@@ -372,11 +373,13 @@ async def order_pois_for_tour(pois: List[Dict[str, str]], user_address: str, max
     # Create the ordering prompt
     prompt = f"""You are an expert tour planner. Given a list of Points of Interest (POIs) and constraints, determine the optimal order to visit them.
 
-Starting Location: {user_address}
+Starting/Ending Location: {user_address}
+Note: The tour MUST start and end at this address ({user_address}).
 
 Tour Theme: {theme}
 
 Constraints:
+- Starting/Ending Address: {user_address}
 - Maximum Time: {max_time}
 - Maximum Distance: {distance}
 {feedback_text}
@@ -384,10 +387,12 @@ POIs to visit:
 {poi_list_str}
 
 Please determine the most efficient order to visit these POIs considering:
-1. Proximity to starting location and each other (minimize travel distance)
-2. Logical flow that makes sense for the tour theme
-3. Time constraints (can all POIs be visited within the time limit?)
-4. Creating a good tour experience (avoid excessive backtracking)
+1. The tour starts and ends at {user_address} - minimize total round-trip distance
+2. Proximity to starting location and each other (minimize travel distance)
+3. Logical flow that makes sense for the tour theme
+4. Time constraints (can all POIs be visited within the time limit, including return to starting location?)
+5. Creating a good tour experience (avoid excessive backtracking)
+6. Ensure the route forms a logical loop that returns to the starting address
 
 Return your answer in this EXACT JSON format, nothing else:
 {{

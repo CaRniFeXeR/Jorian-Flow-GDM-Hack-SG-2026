@@ -131,16 +131,16 @@ export type GuardrailConstraints = {
      * Custom
      */
     custom: string;
+    /**
+     * Address
+     */
+    address: string;
 };
 
 /**
  * GuardrailRequest
  */
 export type GuardrailRequest = {
-    /**
-     * User Address
-     */
-    user_address: string;
     constraints: GuardrailConstraints;
 };
 
@@ -306,6 +306,10 @@ export type ThemeOptionsResponse = {
     themes: {
         [key: string]: string;
     };
+    /**
+     * Address
+     */
+    address: string;
 };
 
 /**

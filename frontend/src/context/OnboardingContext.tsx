@@ -4,6 +4,7 @@ export interface OnboardingData {
     theme: string;
     duration: number; // in minutes (15-120)
     distance: number; // in km (1-8)
+    address: string; // geocoded address
 }
 
 export interface UserLocation {
@@ -22,6 +23,7 @@ interface OnboardingContextType {
     setTheme: (theme: string) => void;
     setDuration: (duration: number) => void;
     setDistance: (distance: number) => void;
+    setAddress: (address: string) => void;
     setUserLocation: (location: UserLocation) => void;
     completeOnboarding: () => void;
 }
@@ -30,6 +32,7 @@ const defaultOnboardingData: OnboardingData = {
     theme: '',
     duration: 60, // default 1 hour
     distance: 4, // default 4km
+    address: '', // geocoded address
 };
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -65,6 +68,10 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setOnboardingData((prev) => ({ ...prev, distance }));
     };
 
+    const setAddress = (address: string) => {
+        setOnboardingData((prev) => ({ ...prev, address }));
+    };
+
     const setUserLocationState = (location: UserLocation) => {
         setUserLocation(location);
     };
@@ -86,6 +93,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setTheme,
         setDuration,
         setDistance,
+        setAddress,
         setUserLocation: setUserLocationState,
         completeOnboarding,
     };

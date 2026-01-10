@@ -143,10 +143,18 @@ export const filterPoiEndpointApiV1FilterPoiPost = <ThrowOnError extends boolean
  * would be valid, but the same request in New York would be invalid.
  *
  * The validation result is stored in the tours table with status_code indicating
- * whether the request passed validation.
+ * whether the request passed validation. The address is stored as part of the constraints.
+ *
+ * If the request is valid, a background process is automatically started to:
+ * 1. Generate POIs based on the address and constraints
+ * 2. Filter/verify the POIs using Google Maps
+ * 3. Order the POIs optimally and create the tour
+ *
+ * You can check the tour status by calling GET /{transaction_id}/{is_dummy}
  *
  * Args:
- * request: GuardrailRequest containing user address and constraints
+ * request: GuardrailRequest containing constraints (including address)
+ * background_tasks: FastAPI background tasks handler
  *
  * Returns:
  * GuardrailResponse with transaction_id and validation result

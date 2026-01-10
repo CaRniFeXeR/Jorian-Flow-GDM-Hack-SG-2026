@@ -18,7 +18,7 @@ interface ThemeSelectionScreenProps {
 }
 
 const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onNext, onPrev }) => {
-    const { onboardingData, setTheme, userLocation } = useOnboarding();
+    const { onboardingData, setTheme, setAddress, userLocation } = useOnboarding();
     const [customTheme, setCustomTheme] = useState('');
     const [showCustomInput, setShowCustomInput] = useState(false);
     const [suggestedThemes, setSuggestedThemes] = useState<ThemeOption[]>([]);
@@ -67,6 +67,13 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onNext, onP
                 
                 const data = response.data as ThemeOptionsResponse;
                 const themes = data?.themes || {};
+                const geocodedAddress = data?.address || '';
+                
+                // Store the geocoded address in context
+                if (geocodedAddress) {
+                    setAddress(geocodedAddress);
+                }
+                
                 const parsedThemes: ThemeOption[] = Object.entries(themes).map(([themeName, description], index) => {
                     const { emoji, label } = parseThemeName(themeName);
                     return {
