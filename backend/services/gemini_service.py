@@ -136,27 +136,34 @@ def get_poi_prompt_template(address: str, time_constraint: str, distance_constra
     Returns:
         Formatted prompt string
     """
+    # Escape curly braces in input variables to prevent format specifier errors
+    # Replace { with {{ and } with }} for each variable
+    safe_address = str(address).replace("{", "{{").replace("}", "}}")
+    safe_time_constraint = str(time_constraint).replace("{", "{{").replace("}", "}}")
+    safe_distance_constraint = str(distance_constraint).replace("{", "{{").replace("}", "}}")
+    safe_user_custom_info = str(user_custom_info).replace("{", "{{").replace("}", "}}")
+    
     prompt = f"""You are a knowledgeable local tour guide. Based on the user's current location and their constraints, recommend relevant Points of Interest (POIs) they can visit.
 
-User Location: {address}
+User Location: {safe_address}
 
 Constraints:
-- Time Available: {time_constraint}
-- Maximum Distance: {distance_constraint}
-- User Preferences: {user_custom_info}
+- Time Available: {safe_time_constraint}
+- Maximum Distance: {safe_distance_constraint}
+- User Preferences: {safe_user_custom_info}
 
 Please generate a list of POIs that match these constraints. Consider the time needed to travel and visit each location.
 
 IMPORTANT: Return ONLY a valid JSON array with the following structure, nothing else:
 [
-    {
+    {{
         "poi_title": "15 Yarwood Avenue",
         "address": "15 Yarwood Ave, Singapore 587987"
-    },
-    {
+    }},
+    {{
         "poi_title": "Block 123 Ang Mo Kio Avenue 3",
         "address": "123 Ang Mo Kio Ave 3, Singapore 560123"
-    }
+    }}
 ]
 
 Guidelines:
