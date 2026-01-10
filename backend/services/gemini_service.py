@@ -2,6 +2,7 @@ import os
 import json
 import google.generativeai as genai
 from typing import Dict, List, Optional
+from services.maps_service import get_address_from_coordinates
 
 
 def get_prompt_template(address: str) -> str:
@@ -43,19 +44,37 @@ Return ONLY the JSON object, no additional text or explanation."""
     return prompt
 
 
-async def generate_theme_options(address: str) -> Dict[str, str]:
+async def generate_theme_options(address: Optional[str] = None, latitude: Optional[float] = None, longitude: Optional[float] = None) -> Dict[str, str]:
     """
     Generate thematic tour options using Gemini API.
 
     Args:
-        address: The location address for generating tour themes
+        address: The location address for generating tour themes (optional if coordinates provided)
+        latitude: Latitude coordinate (optional if address provided)
+        longitude: Longitude coordinate (optional if address provided)
 
     Returns:
         Dictionary mapping theme names to their descriptions
 
     Raises:
+        ValueError: If neither address nor coordinates are provided
         Exception: If API call fails or response is invalid
     """
+    # Validate that either address or coordinates are provided
+    if not address and (latitude is None or longitude is None):
+        raise ValueError("Either 'address' or both 'latitude' and 'longitude' must be provided")
+
+    # If coordinates are provided, convert them to address first
+    if latitude is not None and longitude is not None:
+        try:
+            address = get_address_from_coordinates(latitude, longitude)
+        except Exception as e:
+            raise Exception(f"Error converting coordinates to address: {str(e)}")
+
+    # Ensure address is not None (should be guaranteed by validation above)
+    if address is None:
+        raise ValueError("Address is required but was not provided")
+
     # Configure Gemini API
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:

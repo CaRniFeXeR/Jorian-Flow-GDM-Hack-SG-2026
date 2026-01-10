@@ -18,7 +18,7 @@ interface ThemeSelectionScreenProps {
 }
 
 const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onNext, onPrev }) => {
-    const { onboardingData, setTheme } = useOnboarding();
+    const { onboardingData, setTheme, userLocation } = useOnboarding();
     const [customTheme, setCustomTheme] = useState('');
     const [showCustomInput, setShowCustomInput] = useState(false);
     const [suggestedThemes, setSuggestedThemes] = useState<ThemeOption[]>([]);
@@ -46,13 +46,15 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onNext, onP
 
     // Fetch theme options from API
     useEffect(() => {
-        if (suggestedThemes.length === 0 && !isLoadingThemes) {
+        // Only fetch if we have user location and haven't loaded themes yet
+        if (suggestedThemes.length === 0 && !isLoadingThemes && userLocation.latitude !== null && userLocation.longitude !== null) {
             setIsLoadingThemes(true);
             getThemeOptionsApiV1ThemeOptionsPost({
                 body: {
-                    address: 'Northumberland Road, Singapore',
+                    latitude: userLocation.latitude,
+                    longitude: userLocation.longitude,
                     use_dummy_data: import.meta.env.VITE_USE_DUMMY_DATA === 'true'
-                },
+                } as any, // Type assertion - types.gen.ts has been updated but TypeScript may need a refresh
                 baseUrl: 'http://localhost:8000'
             })
             .then(response => {
@@ -84,7 +86,7 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onNext, onP
                 setSuggestedThemes([]);
             });
         }
-    }, [suggestedThemes.length, isLoadingThemes]);
+    }, [suggestedThemes.length, isLoadingThemes, userLocation.latitude, userLocation.longitude]);
 
     const handleThemeSelect = (theme: string) => {
         setTheme(theme);
@@ -127,7 +129,16 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onNext, onP
                 Choose a theme or create your own adventure
             </p>
 
-            {isLoadingThemes ? (
+            {!userLocation.latitude || !userLocation.longitude ? (
+                <div className="flex flex-col justify-center items-center py-12">
+                    <div className="text-gray-700 text-lg font-medium mb-2">
+                        Getting your location...
+                    </div>
+                    <div className="text-gray-500 text-sm">
+                        Please allow location access to get personalized theme suggestions
+                    </div>
+                </div>
+            ) : isLoadingThemes ? (
                 <div className="flex flex-col justify-center items-center py-12">
                     <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
                     <div className="text-gray-700 text-lg font-medium">

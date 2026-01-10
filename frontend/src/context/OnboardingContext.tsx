@@ -6,16 +6,23 @@ export interface OnboardingData {
     distance: number; // in km (1-8)
 }
 
+export interface UserLocation {
+    latitude: number | null;
+    longitude: number | null;
+}
+
 interface OnboardingContextType {
     isOnboarding: boolean;
     onboardingStep: number;
     onboardingData: OnboardingData;
+    userLocation: UserLocation;
     startOnboarding: () => void;
     nextStep: () => void;
     prevStep: () => void;
     setTheme: (theme: string) => void;
     setDuration: (duration: number) => void;
     setDistance: (distance: number) => void;
+    setUserLocation: (location: UserLocation) => void;
     completeOnboarding: () => void;
 }
 
@@ -31,6 +38,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const [isOnboarding, setIsOnboarding] = useState(true);
     const [onboardingStep, setOnboardingStep] = useState(0);
     const [onboardingData, setOnboardingData] = useState<OnboardingData>(defaultOnboardingData);
+    const [userLocation, setUserLocation] = useState<UserLocation>({ latitude: null, longitude: null });
 
     const startOnboarding = () => {
         setIsOnboarding(true);
@@ -57,6 +65,10 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setOnboardingData((prev) => ({ ...prev, distance }));
     };
 
+    const setUserLocationState = (location: UserLocation) => {
+        setUserLocation(location);
+    };
+
     const completeOnboarding = () => {
         setIsOnboarding(false);
         // Here you would typically trigger tour generation with onboardingData
@@ -67,12 +79,14 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isOnboarding,
         onboardingStep,
         onboardingData,
+        userLocation,
         startOnboarding,
         nextStep,
         prevStep,
         setTheme,
         setDuration,
         setDistance,
+        setUserLocation: setUserLocationState,
         completeOnboarding,
     };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useOnboarding } from '../../context/OnboardingContext';
 import MapContainer from '../Map/MapContainer';
@@ -7,8 +7,38 @@ import ThemeSelectionScreen from './ThemeSelectionScreen';
 import PreferencesScreen from './PreferencesScreen';
 
 const Onboarding: React.FC = () => {
-    const { onboardingStep, nextStep, prevStep } = useOnboarding();
+    const { onboardingStep, nextStep, prevStep, setUserLocation, userLocation } = useOnboarding();
     const [direction, setDirection] = useState(0);
+
+    // Watch user's precise location
+    useEffect(() => {
+        if (!navigator.geolocation) {
+            console.warn('Geolocation is not supported by this browser.');
+            return;
+        }
+
+        const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                setUserLocation({ latitude, longitude });
+                console.log('User location updated:', { latitude, longitude });
+            },
+            (error) => {
+                console.error('Error getting user location:', error);
+                // You might want to set a default location or show an error message
+            },
+            {
+                enableHighAccuracy: true, // Request precise location
+                timeout: 10000,
+                maximumAge: 0 // Don't use cached location
+            }
+        );
+
+        // Cleanup: stop watching when component unmounts
+        return () => {
+            navigator.geolocation.clearWatch(watchId);
+        };
+    }, [setUserLocation]);
 
     const handleNext = () => {
         setDirection(1);
@@ -24,7 +54,14 @@ const Onboarding: React.FC = () => {
         <div className="relative w-full h-screen overflow-hidden bg-gray-50 flex flex-col">
             {/* Map at 30% top */}
             <div className="absolute top-0 left-0 right-0" style={{ height: '30vh' }}>
-                <MapContainer height="30vh" showTourContent={false} />
+                <MapContainer 
+                    height="30vh" 
+                    showTourContent={false}
+                    userLocation={userLocation.latitude !== null && userLocation.longitude !== null 
+                        ? { lat: userLocation.latitude, lng: userLocation.longitude }
+                        : null
+                    }
+                />
             </div>
 
             {/* Onboarding Content */}

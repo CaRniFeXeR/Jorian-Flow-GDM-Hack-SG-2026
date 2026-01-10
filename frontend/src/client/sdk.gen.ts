@@ -60,10 +60,10 @@ export const readAudioApiV1TtsAudioFilenameGet = <ThrowOnError extends boolean =
 /**
  * Get Theme Options
  *
- * Generate thematic tour options for a given location address.
+ * Generate thematic tour options for a given location address or coordinates.
  *
  * Args:
- * request: ThemeOptionsRequest containing the address
+ * request: ThemeOptionsRequest containing either address or latitude/longitude
  *
  * Returns:
  * ThemeOptionsResponse with suggested tour themes

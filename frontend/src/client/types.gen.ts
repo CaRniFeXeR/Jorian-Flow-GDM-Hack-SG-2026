@@ -281,7 +281,15 @@ export type ThemeOptionsRequest = {
     /**
      * Address
      */
-    address: string;
+    address?: string | null;
+    /**
+     * Latitude
+     */
+    latitude?: number | null;
+    /**
+     * Longitude
+     */
+    longitude?: number | null;
     /**
      * Use Dummy Data
      */

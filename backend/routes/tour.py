@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import UUID, uuid4
-from datetime import datetime
 from services.gemini_service import generate_theme_options, generate_pois, validate_user_request_guardrail, order_pois_for_tour
 from services.maps_service import get_address_from_coordinates, verify_multiple_pois, get_place_details, calculate_route_metrics
 from database.database_base import DatabaseBase
@@ -17,13 +16,17 @@ tour_repo = TourRepository(db_base)
 
 
 class ThemeOptionsRequest(BaseModel):
-    address: str
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     use_dummy_data: bool = False
 
     class Config:
         json_schema_extra = {
             "example": {
-                "address": "Orchard Road, Singapore"
+                "address": "Orchard Road, Singapore",
+                "latitude": 1.3048,
+                "longitude": 103.8318
             }
         }
 
@@ -231,10 +234,10 @@ class GenerateTourResponse(BaseModel):
 @router.post("/theme_options", response_model=ThemeOptionsResponse)
 async def get_theme_options(request: ThemeOptionsRequest):
     """
-    Generate thematic tour options for a given location address.
+    Generate thematic tour options for a given location address or coordinates.
 
     Args:
-        request: ThemeOptionsRequest containing the address
+        request: ThemeOptionsRequest containing either address or latitude/longitude
 
     Returns:
         ThemeOptionsResponse with suggested tour themes
@@ -243,15 +246,25 @@ async def get_theme_options(request: ThemeOptionsRequest):
         HTTPException: If there's an error generating themes
     """
     try:
-
         if request.use_dummy_data:
             return ThemeOptionsResponse(themes={
                 "🏛️ Historical Heritage Tour": "Explore the colonial architecture and historical landmarks along this iconic street",
                 "🛍️ Shopping & Fashion Tour": "Discover luxury brands and modern shopping centers in Singapore's premier retail district",
                 "🎨 Cultural Fusion Tour": "Experience the blend of traditional and contemporary Asian culture"
             })
-        themes = await generate_theme_options(request.address)
+
+        # Generate themes using the service (service handles address conversion if coordinates are provided)
+        themes = await generate_theme_options(
+            address=request.address,
+            latitude=request.latitude,
+            longitude=request.longitude
+        )
         return ThemeOptionsResponse(themes=themes)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,

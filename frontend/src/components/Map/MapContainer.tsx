@@ -13,13 +13,15 @@ interface MapContentProps {
     showTourContent?: boolean;
     pois?: Poi[];
     activePoiIndex?: number | null;
+    userLocation?: { lat: number; lng: number } | null;
 }
 
-const MapContent = ({ showTourContent = true, pois, activePoiIndex }: MapContentProps) => {
+const MapContent = ({ showTourContent = true, pois, activePoiIndex, userLocation }: MapContentProps) => {
     const { tour, currentStop, goToStop } = useTour();
     const map = useMap();
-    // Dummy user position near the first stop
-    const [userPosition] = useState({ lat: 1.2865, lng: 103.8540 });
+    // Default user position if not provided (fallback)
+    const defaultUserPosition = { lat: 1.2865, lng: 103.8540 };
+    const userPosition = userLocation || defaultUserPosition;
     const [poiPositions, setPoiPositions] = useState<Map<string, { lat: number; lng: number }>>(new Map());
 
     // Convert POIs to positions using GPS location directly from POI
@@ -281,10 +283,12 @@ interface MapContainerProps {
     showTourContent?: boolean;
     pois?: Poi[];
     activePoiIndex?: number | null;
+    userLocation?: { lat: number; lng: number } | null;
 }
 
-const MapContainer = ({ height = '100dvh', showTourContent = true, pois, activePoiIndex }: MapContainerProps) => {
-    const defaultCenter = { lat: 1.2868, lng: 103.8545 }; // Default to Merlion
+const MapContainer = ({ height = '100dvh', showTourContent = true, pois, activePoiIndex, userLocation }: MapContainerProps) => {
+    // Use user location if available, otherwise default to Merlion
+    const defaultCenter = userLocation || { lat: 1.2868, lng: 103.8545 };
 
     return (
         <div style={{ width: '100%', height }}>
@@ -303,7 +307,7 @@ const MapContainer = ({ height = '100dvh', showTourContent = true, pois, activeP
                     disableDoubleClickZoom={false}
                     draggable={true}
                 >
-                    <MapContent showTourContent={showTourContent} pois={pois} activePoiIndex={activePoiIndex} />
+                    <MapContent showTourContent={showTourContent} pois={pois} activePoiIndex={activePoiIndex} userLocation={userLocation} />
                 </GoogleMap>
             </APIProvider>
         </div>
