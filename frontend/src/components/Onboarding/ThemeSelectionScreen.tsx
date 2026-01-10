@@ -129,24 +129,32 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onPrev }) =
                 </div>
             ) : suggestedThemes.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                    {suggestedThemes.map((theme) => (
-                        <motion.button
-                            key={theme.id}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => handleThemeSelect(theme.label)}
-                            className={`p-6 rounded-2xl border-2 transition-all ${
-                                onboardingData.theme === theme.label
-                                    ? 'border-blue-600 bg-blue-50 shadow-lg'
-                                    : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
-                            }`}
-                        >
-                            <div className="text-4xl mb-2">{theme.icon}</div>
-                            <div className="text-sm font-semibold text-gray-900">
-                                {theme.label}
-                            </div>
-                        </motion.button>
-                    ))}
+                    {suggestedThemes.map((theme, index) => {
+                        // Parse emoji and label from theme string (format: "🏛️ Historical Heritage Walk")
+                        const emojiRegex = /^(\p{Emoji}+)\s*(.*)$/u;
+                        const match = theme.match(emojiRegex);
+                        const emoji = match ? match[1] : theme.charAt(0);
+                        const label = match ? match[2] : theme;
+                        
+                        return (
+                            <motion.button
+                                key={`theme-${index}`}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => handleThemeSelect(theme)}
+                                className={`p-6 rounded-2xl border-2 transition-all ${
+                                    onboardingData.theme === theme
+                                        ? 'border-blue-600 bg-blue-50 shadow-lg'
+                                        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
+                                }`}
+                            >
+                                <div className="text-4xl mb-2">{emoji}</div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                    {label}
+                                </div>
+                            </motion.button>
+                        );
+                    })}
                 </div>
             ) : (
                 <div className="text-gray-500 text-center py-4 mb-6">

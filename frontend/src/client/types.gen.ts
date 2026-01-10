@@ -319,9 +319,7 @@ export type ThemeOptionsResponse = {
     /**
      * Themes
      */
-    themes: {
-        [key: string]: string;
-    };
+    themes: Array<string>;
     /**
      * Address
      */
@@ -338,6 +336,12 @@ export type Tour = {
      * Unique identifier for the tour
      */
     id: string;
+    /**
+     * User Address
+     *
+     * User's starting location address
+     */
+    user_address: string;
     /**
      * Theme
      *
@@ -379,7 +383,7 @@ export type Tour = {
      *
      * Keywords for the tour storyline
      */
-    storyline_keywords: string;
+    storyline_keywords?: string | null;
     /**
      * Constraints
      *

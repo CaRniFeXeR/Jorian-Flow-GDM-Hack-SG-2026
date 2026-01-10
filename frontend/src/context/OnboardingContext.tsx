@@ -14,19 +14,12 @@ export interface UserLocation {
     longitude: number | null;
 }
 
-export interface ThemeOption {
-    id: string;
-    label: string;
-    icon: string;
-    description: string;
-}
-
 interface OnboardingContextType {
     isOnboarding: boolean;
     onboardingStep: number;
     onboardingData: OnboardingData;
     userLocation: UserLocation;
-    suggestedThemes: ThemeOption[];
+    suggestedThemes: string[];
     isLoadingThemes: boolean;
     startOnboarding: () => void;
     nextStep: () => void;
@@ -54,7 +47,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const [onboardingStep, setOnboardingStep] = useState(0);
     const [onboardingData, setOnboardingData] = useState<OnboardingData>(defaultOnboardingData);
     const [userLocation, setUserLocation] = useState<UserLocation>({ latitude: null, longitude: null });
-    const [suggestedThemes, setSuggestedThemes] = useState<ThemeOption[]>([]);
+    const [suggestedThemes, setSuggestedThemes] = useState<string[]>([]);
     const [isLoadingThemes, setIsLoadingThemes] = useState(false);
     const fetchingThemesRef = useRef(false);
 
@@ -130,7 +123,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             }
 
             const data = response.data as ThemeOptionsResponse;
-            const themes = data?.themes || {};
+            const themes = data?.themes || [];
             const geocodedAddress = data?.address || '';
 
             // Store the geocoded address in context
@@ -138,35 +131,8 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 setAddress(geocodedAddress);
             }
 
-            // Parse theme names to extract emoji and label
-            const parseThemeName = (themeName: string): { emoji: string; label: string } => {
-                const emojiRegex = /^(\p{Emoji}+)\s*(.*)$/u;
-                const match = themeName.match(emojiRegex);
-                
-                if (match) {
-                    return {
-                        emoji: match[1],
-                        label: match[2] || themeName
-                    };
-                }
-                
-                return {
-                    emoji: themeName.charAt(0),
-                    label: themeName
-                };
-            };
-
-            const parsedThemes: ThemeOption[] = Object.entries(themes).map(([themeName, description], index) => {
-                const { emoji, label } = parseThemeName(themeName);
-                return {
-                    id: `theme-${index}`,
-                    label: label,
-                    icon: emoji,
-                    description: description as string
-                };
-            });
-
-            setSuggestedThemes(parsedThemes);
+            // Themes is now a simple string array
+            setSuggestedThemes(themes);
             setIsLoadingThemes(false);
             fetchingThemesRef.current = false;
         } catch (error) {
