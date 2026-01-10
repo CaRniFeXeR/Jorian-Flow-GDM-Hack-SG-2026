@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { APIProvider, Map, useMap, AdvancedMarker } from '@vis.gl/react-google-maps';
+import { useEffect, useState, useMemo } from 'react';
+import { APIProvider, Map as GoogleMap, useMap, AdvancedMarker } from '@vis.gl/react-google-maps';
 import { useTour } from '../../context/TourContext';
 import type { TourStop } from '../../data/tourData';
 import StopMarker from './StopMarker';
@@ -250,7 +250,7 @@ const MapContainer = ({ height = '100dvh', showTourContent = true, pois }: MapCo
     return (
         <div style={{ width: '100%', height }}>
             <APIProvider apiKey={API_KEY}>
-                <Map
+                <GoogleMap
                     defaultCenter={defaultCenter}
                     defaultZoom={14}
                     disableDefaultUI={true}
@@ -265,7 +265,7 @@ const MapContainer = ({ height = '100dvh', showTourContent = true, pois }: MapCo
                     draggable={true}
                 >
                     <MapContent showTourContent={showTourContent} pois={pois} />
-                </Map>
+                </GoogleMap>
             </APIProvider>
         </div>
     );

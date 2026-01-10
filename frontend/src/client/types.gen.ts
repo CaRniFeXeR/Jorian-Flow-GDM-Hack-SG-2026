@@ -25,7 +25,7 @@ export type FilterPoiResponse = {
     /**
      * Verified Pois
      */
-    verified_pois: Array<RoutesTourPoi>;
+    verified_pois: Array<Poi>;
     /**
      * Total Input
      */
@@ -80,7 +80,7 @@ export type GeneratePoiResponse = {
     /**
      * Pois
      */
-    pois: Array<RoutesTourPoi>;
+    pois: Array<Poi>;
 };
 
 /**
@@ -173,63 +173,13 @@ export type HttpValidationError = {
  */
 export type Poi = {
     /**
-     * Order
-     *
-     * Order of the POI in the tour
-     */
-    order: number;
-    /**
      * Poi Title
-     *
-     * Title of the POI
      */
-    poi_title?: string | null;
+    poi_title: string;
     /**
-     * Google Place Id
-     *
-     * Google Place ID for this POI
+     * Poi Address
      */
-    google_place_id: string;
-    /**
-     * Google Place Img Url
-     *
-     * Image URL from Google Places
-     */
-    google_place_img_url?: string | null;
-    /**
-     * Address
-     *
-     * Address of the POI
-     */
-    address?: string | null;
-    /**
-     * Google Maps Name
-     *
-     * Name from Google Maps
-     */
-    google_maps_name?: string | null;
-    /**
-     * Story
-     *
-     * Story or description for this POI
-     */
-    story?: string | null;
-    /**
-     * Pin Image Url
-     *
-     * URL for the pin image
-     */
-    pin_image_url?: string | null;
-    /**
-     * Story Keywords
-     *
-     * Keywords related to the story
-     */
-    story_keywords?: string | null;
-    /**
-     * GPS location with latitude and longitude
-     */
-    gps_location?: GpsLocation | null;
+    poi_address: string;
 };
 
 /**
@@ -359,7 +309,7 @@ export type Tour = {
      *
      * List of Points of Interest
      */
-    pois?: Array<Poi>;
+    pois?: Array<SchemasTourPoi>;
     /**
      * Storyline Keywords
      *
@@ -379,7 +329,7 @@ export type Tour = {
      *
      * List of candidate POIs after filtering
      */
-    filtered_candidate_poi_list?: Array<Poi> | null;
+    filtered_candidate_poi_list?: Array<SchemasTourPoi> | null;
 };
 
 /**
@@ -403,15 +353,65 @@ export type ValidationError = {
 /**
  * POI
  */
-export type RoutesTourPoi = {
+export type SchemasTourPoi = {
+    /**
+     * Order
+     *
+     * Order of the POI in the tour
+     */
+    order: number;
     /**
      * Poi Title
+     *
+     * Title of the POI
      */
-    poi_title: string;
+    poi_title?: string | null;
     /**
-     * Poi Address
+     * Google Place Id
+     *
+     * Google Place ID for this POI
      */
-    poi_address: string;
+    google_place_id: string;
+    /**
+     * Google Place Img Url
+     *
+     * Image URL from Google Places
+     */
+    google_place_img_url?: string | null;
+    /**
+     * Address
+     *
+     * Address of the POI
+     */
+    address?: string | null;
+    /**
+     * Google Maps Name
+     *
+     * Name from Google Maps
+     */
+    google_maps_name?: string | null;
+    /**
+     * Story
+     *
+     * Story or description for this POI
+     */
+    story?: string | null;
+    /**
+     * Pin Image Url
+     *
+     * URL for the pin image
+     */
+    pin_image_url?: string | null;
+    /**
+     * Story Keywords
+     *
+     * Keywords related to the story
+     */
+    story_keywords?: string | null;
+    /**
+     * GPS location with latitude and longitude
+     */
+    gps_location?: GpsLocation | null;
 };
 
 export type GenerateTtsApiV1TtsTtsPostData = {
