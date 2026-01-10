@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import type { PanInfo } from 'framer-motion';
+import { SkipBack, SkipForward } from 'lucide-react';
 import AudioControls from '../Audio/AudioControls';
 import { useTour } from '../../context/TourContext';
 
 const Drawer: React.FC = () => {
-    const { currentStop } = useTour();
+    const { currentStop, nextStop, prevStop } = useTour();
     const [isOpen, setIsOpen] = useState(false);
     const controls = useAnimation();
 
@@ -43,7 +44,7 @@ const Drawer: React.FC = () => {
             variants={variants}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-white/95 to-slate-50/95 backdrop-blur-2xl rounded-t-[2.5rem] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-10 h-screen flex flex-col border-t border-white/50"
-            style={{ touchAction: "none" }}
+            style={{ touchAction: "none", backgroundColor: "#fff" }}
         >
             {/* Handle */}
             <div className="w-full flex justify-center pt-4 pb-2 cursor-pointer" onClick={toggleDrawer}>
@@ -54,7 +55,27 @@ const Drawer: React.FC = () => {
             <div className="px-6 flex flex-col h-full">
                 {/* Header Section (Always visible in closed state) */}
                 <div className="flex flex-col items-center mb-6">
-                    <h2 className="text-2xl font-bold text-slate-900 text-center mb-1 tracking-tight">{currentStop.name}</h2>
+                    <div className="flex items-center justify-between w-full mb-1">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); prevStop(); }}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                            aria-label="Previous Stop"
+                        >
+                            <SkipBack size={24} />
+                        </button>
+
+                        <h2 className="text-2xl font-bold text-slate-900 text-center tracking-tight flex-1 px-2 truncate">
+                            {currentStop.name}
+                        </h2>
+
+                        <button
+                            onClick={(e) => { e.stopPropagation(); nextStop(); }}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                            aria-label="Next Stop"
+                        >
+                            <SkipForward size={24} />
+                        </button>
+                    </div>
                     <p className="text-sm text-slate-500 font-medium tracking-wide uppercase mb-6">Audio Tour</p>
 
                     {/* Audio Controls */}

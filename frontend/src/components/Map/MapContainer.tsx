@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { APIProvider, Map, useMap, Marker } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, useMap, AdvancedMarker } from '@vis.gl/react-google-maps';
 import { useTour } from '../../context/TourContext';
 import type { TourStop } from '../../data/tourData';
 import StopMarker from './StopMarker';
@@ -84,17 +84,19 @@ const MapContent = () => {
             ))}
 
             {/* User Position Marker */}
-            <Marker
+            <AdvancedMarker
                 position={userPosition}
-                icon={{
-                    path: 'M 0, 0 m -5, 0 a 5,5 0 1,0 10,0 a 5,5 0 1,0 -10,0',
-                    fillColor: '#4285F4',
-                    fillOpacity: 1,
-                    strokeColor: 'white',
-                    strokeWeight: 3,
-                    scale: 2,
-                }}
-            />
+            >
+                <div style={{
+                    width: '16px',
+                    height: '16px',
+                    backgroundColor: '#4285F4',
+                    borderRadius: '50%',
+                    border: '3px solid white',
+                    boxShadow: '0 0 8px rgba(0,0,0,0.3)',
+                    transform: 'translate(-50%, -50%)'
+                }} />
+            </AdvancedMarker>
 
             {/* Recenter Button */}
             <button
@@ -151,12 +153,12 @@ const MapContainer = () => {
         <div style={{ width: '100vw', height: '100dvh' }}>
             <APIProvider apiKey={API_KEY}>
                 <Map
-                    mapId="DEMO_MAP_ID"
                     defaultCenter={defaultCenter}
                     defaultZoom={14}
                     disableDefaultUI={true}
                     gestureHandling={'greedy'}
                     reuseMaps={true}
+                    mapId="DEMO_MAP_ID"
                     styles={cleanMapStyles}
                     // Explicitly enable gestures that might be restricted
                     zoomControl={false}

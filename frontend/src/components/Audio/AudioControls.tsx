@@ -1,63 +1,45 @@
 import React from 'react';
-import { Play, Pause, RotateCcw, RotateCw, SkipBack, SkipForward } from 'lucide-react';
+import { Play, Pause, RotateCcw, RotateCw } from 'lucide-react';
 import { useTour } from '../../context/TourContext';
 
 const AudioControls: React.FC = () => {
-    const { isPlaying, setPlaying, nextStop, prevStop } = useTour();
+    const { isPlaying, setPlaying } = useTour();
 
     return (
-        <div className="flex items-center justify-between w-full max-w-sm mx-auto px-4 py-8">
-            {/* Prev Station */}
-            <button
-                onClick={prevStop}
-                className="p-3 text-slate-400 hover:text-blue-600 transition-all rounded-full hover:bg-blue-50 active:bg-blue-100"
-                aria-label="Previous Stop"
-            >
-                <SkipBack size={26} strokeWidth={1.5} />
-            </button>
-
+        <div className="flex items-center justify-center gap-6 w-full max-w-sm mx-auto py-4">
             {/* 15s Back */}
             <button
-                className="p-3 text-slate-500 hover:text-blue-600 transition-all rounded-full hover:bg-blue-50 active:bg-blue-100 relative group"
+                className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-white border border-indigo-100 text-indigo-500 shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-indigo-50 active:scale-95 transition-all duration-200"
                 aria-label="Rewind 15 seconds"
             >
                 <div className="relative">
-                    <RotateCcw size={30} strokeWidth={1.5} />
-                    <span className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[10px] font-bold pt-1.5 select-none text-current opacity-80">15</span>
+                    <RotateCcw size={24} strokeWidth={2} />
+                    <span className="absolute top-[52%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[9px] font-extrabold text-indigo-600/90 select-none">15</span>
                 </div>
             </button>
 
             {/* Play/Pause - Gemini FAB Style */}
             <button
                 onClick={() => setPlaying(!isPlaying)}
-                className="flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 active:scale-95 transition-all duration-300 border-[3px] border-white/20"
+                className="flex items-center justify-center w-20 h-20 bg-gradient-to-br from-[#4E75F6] to-[#7A5AF8] rounded-[2rem] text-white shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105 active:scale-95 transition-all duration-300 ring-4 ring-white/50"
                 aria-label={isPlaying ? "Pause" : "Play"}
             >
                 {isPlaying ? (
-                    <Pause size={38} fill="currentColor" strokeWidth={0} />
+                    <Pause size={36} fill="currentColor" strokeWidth={0} />
                 ) : (
-                    <Play size={38} fill="currentColor" strokeWidth={0} className="ml-1" />
+                    <Play size={36} fill="currentColor" strokeWidth={0} className="ml-1" />
                 )}
             </button>
 
             {/* 15s Forward */}
             <button
-                className="p-3 text-slate-500 hover:text-blue-600 transition-all rounded-full hover:bg-blue-50 active:bg-blue-100 relative group"
+                className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-white border border-indigo-100 text-indigo-500 shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-indigo-50 active:scale-95 transition-all duration-200"
                 aria-label="Skip forward 15 seconds"
             >
                 <div className="relative">
-                    <RotateCw size={30} strokeWidth={1.5} />
-                    <span className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[10px] font-bold pt-1.5 select-none text-current opacity-80">15</span>
+                    <RotateCw size={24} strokeWidth={2} />
+                    <span className="absolute top-[52%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[9px] font-extrabold text-indigo-600/90 select-none">15</span>
                 </div>
-            </button>
-
-            {/* Next Station */}
-            <button
-                onClick={nextStop}
-                className="p-3 text-slate-400 hover:text-blue-600 transition-all rounded-full hover:bg-blue-50 active:bg-blue-100"
-                aria-label="Next Stop"
-            >
-                <SkipForward size={26} strokeWidth={1.5} />
             </button>
         </div>
     );
