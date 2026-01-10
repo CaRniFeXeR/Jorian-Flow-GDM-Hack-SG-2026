@@ -65,7 +65,7 @@ async def root():
             "/api/v1/generate_poi": "POST - Generate POIs based on coordinates and constraints",
             "/api/v1/filter_poi": "POST - Filter and verify POIs using Google Maps Places API",
             "/api/v1/tts/tts": "POST - Generate text-to-speech audio",
-            "/api/v1/tts/audio/{filename}": "GET - Stream audio file"
+            "/api/v1/tts/audio/{filename}": "GET - Stream audio file",
         }
     }
 

@@ -212,3 +212,102 @@ async def generate_pois(address: str, time_constraint: str, distance_constraint:
         raise Exception(f"Failed to parse Gemini response as JSON: {str(e)}")
     except Exception as e:
         raise Exception(f"Error calling Gemini API: {str(e)}")
+
+async def validate_user_request_guardrail(user_address: str, max_time: str, distance: str, custom_message: str) -> bool:
+    """
+    Validate if the user's custom tour request makes sense for their current location.
+
+    Args:
+        user_address: The user's current location address
+        max_time: Maximum time available for the tour
+        distance: Maximum distance willing to travel
+        custom_message: User's custom request/preferences
+
+    Returns:
+        True if the request is legitimate and makes sense, False otherwise
+
+    Raises:
+        Exception: If API call fails or response is invalid
+    """
+    # Configure Gemini API
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not found in environment variables")
+
+    genai.configure(api_key=api_key)
+
+    # Initialize the model
+    model = genai.GenerativeModel('gemini-3-flash-preview')
+
+    # Create the validation prompt
+    prompt = f"""You are a location and tour validation expert. Your job is to determine if a user's tour request makes sense given their current location.
+
+User's Current Location: {user_address}
+
+User's Tour Request:
+- Maximum Time Available: {max_time}
+- Maximum Distance Willing to Travel: {distance}
+- Custom Preferences/Request: {custom_message}
+
+Please analyze if this tour request is legitimate and makes sense for the user's location. Consider:
+
+1. Geographic Relevance: Does the custom request relate to things that could reasonably be found in or near the user's location?
+   - Example: "chicken rice tour" in Singapore = VALID
+   - Example: "chicken rice tour" in New York = INVALID (chicken rice is specific to Singapore/Malaysia)
+   - Example: "pizza tour" in New York = VALID
+   - Example: "sushi tour" in Tokyo = VALID
+
+2. Feasibility: Can the request be fulfilled within the given time and distance constraints for that location?
+
+3. Cultural/Geographic Match: Does the request match the cultural or geographic context of the location?
+   - Example: "surfing tour" in Hawaii = VALID
+   - Example: "surfing tour" in landlocked Switzerland = INVALID
+   - Example: "temple tour" in Kyoto = VALID
+   - Example: "beach tour" in Paris = INVALID (no beaches in Paris)
+
+Return your answer in this EXACT JSON format, nothing else:
+{{
+    "valid": true or false,
+    "reason": "Brief explanation of why this is valid or invalid"
+}}
+
+IMPORTANT: Return ONLY the JSON object, no additional text."""
+
+    try:
+        # Generate content
+        response = model.generate_content(prompt)
+
+        # Extract the response text
+        response_text = response.text.strip()
+
+        # Remove markdown code blocks if present
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+
+        response_text = response_text.strip()
+
+        # Parse JSON response
+        result = json.loads(response_text)
+
+        # Validate response structure
+        if 'valid' not in result:
+            raise Exception("Invalid response format from Gemini API")
+
+        # Log the validation reason
+        print(f"🛡️ Guardrail validation for '{custom_message}' at '{user_address}': {result.get('valid')}")
+        print(f"   Reason: {result.get('reason', 'No reason provided')}")
+
+        return result.get('valid', False)
+
+    except json.JSONDecodeError as e:
+        print(f"❌ Failed to parse guardrail response as JSON: {str(e)}")
+        # Default to False if we can't parse the response
+        return False
+    except Exception as e:
+        print(f"❌ Error calling Gemini API for guardrail: {str(e)}")
+        # Default to False on error for safety
+        return False
