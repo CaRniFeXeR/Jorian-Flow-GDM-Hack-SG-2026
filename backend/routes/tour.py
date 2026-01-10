@@ -1,8 +1,11 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 import logging
+import os
+import httpx
 from services.gemini_service import generate_theme_options, validate_user_request_guardrail, generate_narrative_stories, generate_tour_introduction
 from services.maps_service import get_address_from_coordinates
 from database.database_base import DatabaseBase
@@ -987,4 +990,68 @@ async def get_tour_by_id(tour_id: UUID, is_dummy: bool = False):
         raise HTTPException(
             status_code=500,
             detail=f"Error retrieving tour: {str(e)}"
+        )
+
+
+@router.get("/place-photo", response_class=StreamingResponse)
+async def get_place_photo(photo_reference: str, maxwidth: int = 800):
+    """
+    Proxy endpoint for Google Maps Places API photos.
+    
+    This endpoint fetches images from Google Maps Places API on the server side
+    to avoid CORS issues in the browser. The API key is kept secure on the server.
+    
+    Args:
+        photo_reference: The photo reference from Google Places API
+        maxwidth: Maximum width of the image in pixels (default: 800)
+    
+    Returns:
+        Image data with appropriate content-type headers
+    """
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="Google Maps API key not configured"
+        )
+    
+    if not photo_reference:
+        raise HTTPException(
+            status_code=400,
+            detail="photo_reference parameter is required"
+        )
+    
+    try:
+        # Build the Google Maps Places Photo API URL
+        photo_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth={maxwidth}&photo_reference={photo_reference}&key={api_key}"
+        
+        # Fetch the image from Google Maps API
+        async with httpx.AsyncClient(timeout=30.0) as http_client:
+            response = await http_client.get(photo_url, follow_redirects=True)
+            response.raise_for_status()
+            
+            # Get content type from response headers, default to jpeg
+            content_type = response.headers.get("content-type", "image/jpeg")
+            
+            # Return the image as a streaming response with proper headers
+            return StreamingResponse(
+                iter([response.content]),
+                media_type=content_type,
+                headers={
+                    "Cache-Control": "public, max-age=86400",  # Cache for 1 day
+                    "Access-Control-Allow-Origin": "*",
+                }
+            )
+    
+    except httpx.HTTPError as e:
+        logger.error(f"Error fetching place photo: {str(e)}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Error fetching image from Google Maps API: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in place photo proxy: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
         )

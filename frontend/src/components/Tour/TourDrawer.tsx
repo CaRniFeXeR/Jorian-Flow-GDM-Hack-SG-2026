@@ -7,6 +7,36 @@ import TourStopsList from './TourStopsList';
 import type { Tour, Poi } from '../../client/types.gen';
 import type { AudioPlayerRef } from '../Audio/AudioPlayer';
 
+/**
+ * Converts a Google Maps Places API photo URL to a proxy URL.
+ * Extracts the photo_reference from the URL and uses the backend proxy endpoint.
+ * 
+ * @param googlePhotoUrl - The full Google Maps Places API photo URL
+ * @returns The proxy URL pointing to our backend endpoint, or the original URL if extraction fails
+ */
+const getProxyPhotoUrl = (googlePhotoUrl: string | null | undefined): string => {
+    if (!googlePhotoUrl) return '';
+    
+    try {
+        // Extract photo_reference from the Google Maps URL
+        // Format: https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=XXX&key=YYY
+        const url = new URL(googlePhotoUrl);
+        const photoReference = url.searchParams.get('photo_reference');
+        const maxwidth = url.searchParams.get('maxwidth') || '800';
+        
+        if (photoReference) {
+            // Use the backend proxy endpoint
+            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+            return `${baseUrl}/api/v1/place-photo?photo_reference=${encodeURIComponent(photoReference)}&maxwidth=${maxwidth}`;
+        }
+    } catch (error) {
+        console.warn('Failed to parse Google photo URL:', error);
+    }
+    
+    // Fallback to original URL if extraction fails
+    return googlePhotoUrl;
+};
+
 interface TourDrawerProps {
     tour: Tour;
     currentStopIndex: number | null; // null means introduction
@@ -74,7 +104,7 @@ const TourDrawer: React.FC<TourDrawerProps> = ({
         ? tour.theme || 'Tour Introduction'
         : currentPoi?.poi_title || currentPoi?.google_maps_name || 'Stop';
 
-    const currentImage = currentPoi?.google_place_img_url || '';
+    const currentImage = getProxyPhotoUrl(currentPoi?.google_place_img_url);
 
     const currentDescription = currentStopIndex === null
         ? tour.introduction || ''

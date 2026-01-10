@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { FilterPoiEndpointApiV1FilterPoiPostData, FilterPoiEndpointApiV1FilterPoiPostErrors, FilterPoiEndpointApiV1FilterPoiPostResponses, GenerateIntroductionEndpointApiV1GenerateIntroductionPostData, GenerateIntroductionEndpointApiV1GenerateIntroductionPostErrors, GenerateIntroductionEndpointApiV1GenerateIntroductionPostResponses, GeneratePoiEndpointApiV1GeneratePoiPostData, GeneratePoiEndpointApiV1GeneratePoiPostErrors, GeneratePoiEndpointApiV1GeneratePoiPostResponses, GenerateStoryEndpointApiV1GenerateStoryPostData, GenerateStoryEndpointApiV1GenerateStoryPostErrors, GenerateStoryEndpointApiV1GenerateStoryPostResponses, GenerateTourApiV1GenerateTourPostData, GenerateTourApiV1GenerateTourPostErrors, GenerateTourApiV1GenerateTourPostResponses, GenerateTtsApiV1TtsTtsPostData, GenerateTtsApiV1TtsTtsPostErrors, GenerateTtsApiV1TtsTtsPostResponses, GetThemeOptionsApiV1ThemeOptionsPostData, GetThemeOptionsApiV1ThemeOptionsPostErrors, GetThemeOptionsApiV1ThemeOptionsPostResponses, GetTourByIdApiV1TourIdIsDummyGetData, GetTourByIdApiV1TourIdIsDummyGetErrors, GetTourByIdApiV1TourIdIsDummyGetResponses, GuardrailValidationApiV1GuardrailPostData, GuardrailValidationApiV1GuardrailPostErrors, GuardrailValidationApiV1GuardrailPostResponses, HealthCheckHealthGetData, HealthCheckHealthGetResponses, ReadAudioApiV1TtsAudioFilenameGetData, ReadAudioApiV1TtsAudioFilenameGetErrors, ReadAudioApiV1TtsAudioFilenameGetResponses, RootGetData, RootGetResponses } from './types.gen';
+import type { FilterPoiEndpointApiV1FilterPoiPostData, FilterPoiEndpointApiV1FilterPoiPostErrors, FilterPoiEndpointApiV1FilterPoiPostResponses, GenerateIntroductionEndpointApiV1GenerateIntroductionPostData, GenerateIntroductionEndpointApiV1GenerateIntroductionPostErrors, GenerateIntroductionEndpointApiV1GenerateIntroductionPostResponses, GeneratePoiEndpointApiV1GeneratePoiPostData, GeneratePoiEndpointApiV1GeneratePoiPostErrors, GeneratePoiEndpointApiV1GeneratePoiPostResponses, GenerateStoryEndpointApiV1GenerateStoryPostData, GenerateStoryEndpointApiV1GenerateStoryPostErrors, GenerateStoryEndpointApiV1GenerateStoryPostResponses, GenerateTourApiV1GenerateTourPostData, GenerateTourApiV1GenerateTourPostErrors, GenerateTourApiV1GenerateTourPostResponses, GenerateTtsApiV1TtsTtsPostData, GenerateTtsApiV1TtsTtsPostErrors, GenerateTtsApiV1TtsTtsPostResponses, GetPlacePhotoApiV1PlacePhotoGetData, GetPlacePhotoApiV1PlacePhotoGetErrors, GetPlacePhotoApiV1PlacePhotoGetResponses, GetThemeOptionsApiV1ThemeOptionsPostData, GetThemeOptionsApiV1ThemeOptionsPostErrors, GetThemeOptionsApiV1ThemeOptionsPostResponses, GetTourByIdApiV1TourIdIsDummyGetData, GetTourByIdApiV1TourIdIsDummyGetErrors, GetTourByIdApiV1TourIdIsDummyGetResponses, GuardrailValidationApiV1GuardrailPostData, GuardrailValidationApiV1GuardrailPostErrors, GuardrailValidationApiV1GuardrailPostResponses, HealthCheckHealthGetData, HealthCheckHealthGetResponses, ReadAudioApiV1TtsAudioFilenameGetData, ReadAudioApiV1TtsAudioFilenameGetErrors, ReadAudioApiV1TtsAudioFilenameGetResponses, RootGetData, RootGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -269,6 +269,23 @@ export const generateStoryEndpointApiV1GenerateStoryPost = <ThrowOnError extends
  * HTTPException: If the tour is not found or there's an error retrieving it
  */
 export const getTourByIdApiV1TourIdIsDummyGet = <ThrowOnError extends boolean = false>(options: Options<GetTourByIdApiV1TourIdIsDummyGetData, ThrowOnError>) => (options.client ?? client).get<GetTourByIdApiV1TourIdIsDummyGetResponses, GetTourByIdApiV1TourIdIsDummyGetErrors, ThrowOnError>({ url: '/api/v1/{tour_id}/{is_dummy}', ...options });
+
+/**
+ * Get Place Photo
+ *
+ * Proxy endpoint for Google Maps Places API photos.
+ *
+ * This endpoint fetches images from Google Maps Places API on the server side
+ * to avoid CORS issues in the browser. The API key is kept secure on the server.
+ *
+ * Args:
+ * photo_reference: The photo reference from Google Places API
+ * maxwidth: Maximum width of the image in pixels (default: 800)
+ *
+ * Returns:
+ * Image data with appropriate content-type headers
+ */
+export const getPlacePhotoApiV1PlacePhotoGet = <ThrowOnError extends boolean = false>(options: Options<GetPlacePhotoApiV1PlacePhotoGetData, ThrowOnError>) => (options.client ?? client).get<GetPlacePhotoApiV1PlacePhotoGetResponses, GetPlacePhotoApiV1PlacePhotoGetErrors, ThrowOnError>({ url: '/api/v1/place-photo', ...options });
 
 /**
  * Root

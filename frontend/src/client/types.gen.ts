@@ -261,7 +261,7 @@ export type Poi = {
      *
      * Order of the POI in the tour
      */
-    order: number;
+    order?: number | null;
     /**
      * Poi Title
      *
@@ -273,7 +273,7 @@ export type Poi = {
      *
      * Google Place ID for this POI
      */
-    google_place_id: string;
+    google_place_id?: string | null;
     /**
      * Google Place Img Url
      *
@@ -747,6 +747,38 @@ export type GetTourByIdApiV1TourIdIsDummyGetResponses = {
 };
 
 export type GetTourByIdApiV1TourIdIsDummyGetResponse = GetTourByIdApiV1TourIdIsDummyGetResponses[keyof GetTourByIdApiV1TourIdIsDummyGetResponses];
+
+export type GetPlacePhotoApiV1PlacePhotoGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Photo Reference
+         */
+        photo_reference: string;
+        /**
+         * Maxwidth
+         */
+        maxwidth?: number;
+    };
+    url: '/api/v1/place-photo';
+};
+
+export type GetPlacePhotoApiV1PlacePhotoGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPlacePhotoApiV1PlacePhotoGetError = GetPlacePhotoApiV1PlacePhotoGetErrors[keyof GetPlacePhotoApiV1PlacePhotoGetErrors];
+
+export type GetPlacePhotoApiV1PlacePhotoGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type RootGetData = {
     body?: never;
