@@ -47,3 +47,17 @@ class TourRepository:
         Update a tour by its ID.
         """
         self.table.update(updates, doc_ids=[tour_id])
+
+    def update_tour_by_uuid(self, tour_uuid: str, updates: Dict[str, Any]) -> bool:
+        """
+        Update a tour by its UUID.
+        Returns True if updated, False if tour not found.
+        """
+        Tour = Query()
+        results = self.table.search(Tour.id == tour_uuid)
+        if not results:
+            return False
+        # Update using the document ID
+        doc_id = results[0].doc_id
+        self.table.update(updates, doc_ids=[doc_id])
+        return True

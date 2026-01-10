@@ -311,3 +311,123 @@ IMPORTANT: Return ONLY the JSON object, no additional text."""
         print(f"❌ Error calling Gemini API for guardrail: {str(e)}")
         # Default to False on error for safety
         return False
+
+
+async def order_pois_for_tour(pois: List[Dict[str, str]], user_address: str, max_time: str, distance: str, theme: str) -> List[Dict]:
+    """
+    Order POIs optimally for a tour based on constraints and proximity.
+
+    Args:
+        pois: List of POI dictionaries with poi_title and poi_address
+        user_address: User's starting location
+        max_time: Maximum time available for the tour
+        distance: Maximum distance willing to travel
+        theme: Tour theme/custom message
+
+    Returns:
+        List of ordered POIs with order field added
+
+    Raises:
+        Exception: If API call fails or response is invalid
+    """
+    # Configure Gemini API
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not found in environment variables")
+
+    genai.configure(api_key=api_key)
+
+    # Initialize the model
+    model = genai.GenerativeModel('gemini-3-flash-preview')
+
+    # Create POI list for prompt
+    poi_list_str = ""
+    for i, poi in enumerate(pois, 1):
+        poi_list_str += f"{i}. {poi.get('poi_title', 'Unknown')} - {poi.get('poi_address', 'Unknown')}\n"
+
+    # Create the ordering prompt
+    prompt = f"""You are an expert tour planner. Given a list of Points of Interest (POIs) and constraints, determine the optimal order to visit them.
+
+Starting Location: {user_address}
+
+Tour Theme: {theme}
+
+Constraints:
+- Maximum Time: {max_time}
+- Maximum Distance: {distance}
+
+POIs to visit:
+{poi_list_str}
+
+Please determine the most efficient order to visit these POIs considering:
+1. Proximity to starting location and each other (minimize travel distance)
+2. Logical flow that makes sense for the tour theme
+3. Time constraints (can all POIs be visited within the time limit?)
+4. Creating a good tour experience (avoid excessive backtracking)
+
+Return your answer in this EXACT JSON format, nothing else:
+{{
+    "ordered_pois": [
+        {{
+            "original_index": 1,
+            "poi_title": "POI Title",
+            "poi_address": "POI Address",
+            "order": 1,
+            "reasoning": "Brief reason for this position"
+        }},
+        {{
+            "original_index": 2,
+            "poi_title": "POI Title",
+            "poi_address": "POI Address",
+            "order": 2,
+            "reasoning": "Brief reason for this position"
+        }}
+    ]
+}}
+
+IMPORTANT: 
+- Use the original_index to match POIs from the input list (starting from 1)
+- The "order" field should be the sequence in the tour (1 = first stop, 2 = second stop, etc.)
+- Return ONLY the JSON object, no additional text."""
+
+    try:
+        # Generate content
+        response = model.generate_content(prompt)
+
+        # Extract the response text
+        response_text = response.text.strip()
+
+        # Remove markdown code blocks if present
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+
+        response_text = response_text.strip()
+
+        # Parse JSON response
+        result = json.loads(response_text)
+
+        if 'ordered_pois' not in result:
+            raise Exception("Invalid response format from Gemini API")
+
+        ordered_pois = result['ordered_pois']
+
+        print(f"🗺️ Tour order planned for {len(ordered_pois)} POIs")
+        for poi in ordered_pois:
+            print(f"   {poi.get('order')}. {poi.get('poi_title')} - {poi.get('reasoning', 'No reason')}")
+
+        return ordered_pois
+
+    except json.JSONDecodeError as e:
+        print(f"❌ Failed to parse Gemini ordering response as JSON: {str(e)}")
+        # Fallback: return POIs in original order
+        return [{"original_index": i+1, "poi_title": poi.get('poi_title'), "poi_address": poi.get('poi_address'), "order": i+1} 
+                for i, poi in enumerate(pois)]
+    except Exception as e:
+        print(f"❌ Error calling Gemini API for POI ordering: {str(e)}")
+        # Fallback: return POIs in original order
+        return [{"original_index": i+1, "poi_title": poi.get('poi_title'), "poi_address": poi.get('poi_address'), "order": i+1} 
+                for i, poi in enumerate(pois)]

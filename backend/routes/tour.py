@@ -3,8 +3,8 @@ from pydantic import BaseModel
 from typing import Dict, List
 from uuid import UUID, uuid4
 from datetime import datetime
-from services.gemini_service import generate_theme_options, generate_pois, validate_user_request_guardrail
-from services.maps_service import get_address_from_coordinates, verify_multiple_pois
+from services.gemini_service import generate_theme_options, generate_pois, validate_user_request_guardrail, order_pois_for_tour
+from services.maps_service import get_address_from_coordinates, verify_multiple_pois, get_place_details
 from database.database_base import DatabaseBase
 from database.tour import TourRepository
 from schemas.tour import Tour
@@ -193,6 +193,66 @@ class GuardrailResponse(BaseModel):
             "example": {
                 "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
                 "valid": True
+            }
+        }
+
+
+class GenerateTourConstraints(BaseModel):
+    max_time: str
+    distance: str
+    custom: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "max_time": "3 hours",
+                "distance": "10 km",
+                "custom": "I want a chicken rice food tour"
+            }
+        }
+
+
+class GenerateTourRequest(BaseModel):
+    transaction_id: str
+    pois: List[POI]
+    constraints: GenerateTourConstraints
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
+                "pois": [
+                    {
+                        "poi_title": "Singapore Botanic Gardens",
+                        "poi_address": "1 Cluny Rd, Singapore 259569"
+                    },
+                    {
+                        "poi_title": "ION Orchard",
+                        "poi_address": "2 Orchard Turn, Singapore 238801"
+                    }
+                ],
+                "constraints": {
+                    "max_time": "3 hours",
+                    "distance": "10 km",
+                    "custom": "I want a historical tour"
+                }
+            }
+        }
+
+
+class GenerateTourResponse(BaseModel):
+    transaction_id: str
+    success: bool
+    message: str
+    pois_count: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
+                "success": True,
+                "message": "Tour successfully generated and stored",
+                "pois_count": 5
             }
         }
 
@@ -420,6 +480,123 @@ async def guardrail_validation(request: GuardrailRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Error validating request: {str(e)}"
+        )
+
+
+@router.post("/generate_tour", response_model=GenerateTourResponse)
+async def generate_tour(request: GenerateTourRequest):
+    """
+    Generate and plan the routing of a tour.
+
+    This endpoint takes filtered POIs and orders them optimally for a tour.
+    It updates the database with:
+    - order: Sequence in which POIs should be visited
+    - poi_title: Name of the POI
+    - address: Location address
+    - google_place_id: Google Maps Place ID
+    - google_maps_name: Official name from Google Maps
+
+    Args:
+        request: GenerateTourRequest with transaction_id, POIs, and constraints
+
+    Returns:
+        GenerateTourResponse with success status and POI count
+
+    Raises:
+        HTTPException: If tour not found or error during generation
+    """
+    try:
+        # Look up the tour in database using transaction_id
+        tour_data = tour_repo.get_tour_by_uuid(request.transaction_id)
+
+        if tour_data is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Tour with transaction_id {request.transaction_id} not found"
+            )
+
+        # Get the user address from the tour
+        user_address = tour_data.get('storyline_keywords', '')
+        theme = tour_data.get('theme', request.constraints.custom)
+
+        # Convert POI models to dictionaries
+        pois_dict = [poi.model_dump() for poi in request.pois]
+
+        # Use Gemini to order the POIs optimally
+        ordered_pois = await order_pois_for_tour(
+            pois=pois_dict,
+            user_address=user_address,
+            max_time=request.constraints.max_time,
+            distance=request.constraints.distance,
+            theme=theme
+        )
+
+        # Enrich each POI with Google Maps details
+        enriched_pois = []
+        for ordered_poi in ordered_pois:
+            poi_title = ordered_poi.get('poi_title', '')
+            poi_address = ordered_poi.get('poi_address', '')
+            order = ordered_poi.get('order', 0)
+
+            # Get Google Maps details (place_id, name)
+            place_details = get_place_details(poi_title, poi_address)
+
+            if place_details:
+                poi_entry = {
+                    "order": order,
+                    "google_place_id": place_details.get('google_place_id', ''),
+                    "google_place_img_url": None,  # Can be added later
+                    "address": place_details.get('formatted_address', poi_address),
+                    "google_maps_name": place_details.get('google_maps_name', poi_title),
+                    "story": None,  # To be filled later
+                    "pin_image_url": None,  # To be filled later
+                    "story_keywords": None  # To be filled later
+                }
+            else:
+                # Fallback if place details not found
+                poi_entry = {
+                    "order": order,
+                    "google_place_id": "",
+                    "google_place_img_url": None,
+                    "address": poi_address,
+                    "google_maps_name": poi_title,
+                    "story": None,
+                    "pin_image_url": None,
+                    "story_keywords": None
+                }
+
+            enriched_pois.append(poi_entry)
+
+        # Update the tour in database with the enriched POIs
+        updated = tour_repo.update_tour_by_uuid(
+            tour_uuid=request.transaction_id,
+            updates={"pois": enriched_pois}
+        )
+
+        if not updated:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to update tour in database"
+            )
+
+        return GenerateTourResponse(
+            transaction_id=request.transaction_id,
+            success=True,
+            message="Tour successfully generated and stored",
+            pois_count=len(enriched_pois)
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating tour: {str(e)}"
         )
 
 

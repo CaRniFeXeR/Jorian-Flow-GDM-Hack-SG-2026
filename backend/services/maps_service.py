@@ -196,3 +196,58 @@ def verify_multiple_pois(pois: list) -> list:
             verified_pois.append(poi)
 
     return verified_pois
+
+def get_place_details(poi_title: str, poi_address: str) -> Optional[Dict]:
+    """
+    Get Google Place ID and name for a POI.
+
+    Args:
+        poi_title: The name/title of the POI
+        poi_address: The address of the POI
+
+    Returns:
+        Dictionary with place_id and name, or None if not found
+
+    Raises:
+        ValueError: If API key is not found
+    """
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    if not api_key:
+        raise ValueError("GOOGLE_MAPS_API_KEY not found in environment variables")
+
+    try:
+        gmaps = googlemaps.Client(key=api_key)
+
+        # Search for the POI using find_place
+        search_query = f"{poi_title}, {poi_address}"
+
+        result = gmaps.find_place(
+            input=search_query,
+            input_type="textquery",
+            fields=["place_id", "name", "formatted_address"]
+        )
+
+        # Check if we got results
+        if not result or 'candidates' not in result or len(result['candidates']) == 0:
+            print(f"❌ No place details found for: {search_query}")
+            return None
+
+        # Get the first candidate
+        candidate = result['candidates'][0]
+
+        place_details = {
+            'google_place_id': candidate.get('place_id', ''),
+            'google_maps_name': candidate.get('name', poi_title),
+            'formatted_address': candidate.get('formatted_address', poi_address)
+        }
+
+        print(f"✅ Found place details for '{poi_title}': {place_details['google_maps_name']} ({place_details['google_place_id']})")
+
+        return place_details
+
+    except googlemaps.exceptions.ApiError as e:
+        print(f"❌ Google Maps API error while getting place details: {str(e)}")
+        return None
+    except Exception as e:
+        print(f"❌ Error getting place details: {str(e)}")
+        return None

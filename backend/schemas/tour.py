@@ -5,6 +5,10 @@ from uuid import UUID
 
 class POI(BaseModel):
     order: int = Field(..., description="Order of the POI in the tour")
+    filtered_candidate_poi_list: Optional[List[str]] = Field(
+        None, description="List of filtered candidate POIs"
+    )
+    poi_title: Optional[str] = Field(None, description="Title of the POI")
     google_place_id: str = Field(..., description="Google Place ID for this POI")
     google_place_img_url: Optional[str] = Field(None, description="Image URL from Google Places")
     address: Optional[str] = Field(None, description="Address of the POI")
