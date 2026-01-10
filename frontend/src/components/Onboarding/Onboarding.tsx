@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
 import { useOnboarding } from '../../context/OnboardingContext';
 import MapContainer from '../Map/MapContainer';
+import { getThemeOptionsApiV1ThemeOptionsPost } from '../../client';
+import type { ThemeOptionsResponse } from '../../client';
 
-const SUGGESTED_THEMES = [
-    { id: 'history', label: 'Historical Landmarks', icon: '🏛️' },
-    { id: 'food', label: 'Food & Culture', icon: '🍜' },
-    { id: 'nature', label: 'Nature & Parks', icon: '🌳' },
-    { id: 'art', label: 'Art & Architecture', icon: '🎨' },
-];
+interface ThemeOption {
+    id: string;
+    label: string;
+    icon: string;
+    description: string;
+}
 
 const Onboarding: React.FC = () => {
     const {
@@ -25,6 +27,70 @@ const Onboarding: React.FC = () => {
 
     const [customTheme, setCustomTheme] = useState('');
     const [showCustomInput, setShowCustomInput] = useState(false);
+    const [suggestedThemes, setSuggestedThemes] = useState<ThemeOption[]>([]);
+    const [isLoadingThemes, setIsLoadingThemes] = useState(false);
+
+    // Extract emoji and label from theme name
+    const parseThemeName = (themeName: string): { emoji: string; label: string } => {
+        // Check if theme name starts with an emoji (usually first 2-4 characters)
+        const emojiRegex = /^(\p{Emoji}+)\s*(.*)$/u;
+        const match = themeName.match(emojiRegex);
+        
+        if (match) {
+            return {
+                emoji: match[1],
+                label: match[2] || themeName
+            };
+        }
+        
+        // If no emoji found, return first character as fallback or empty
+        return {
+            emoji: themeName.charAt(0),
+            label: themeName
+        };
+    };
+
+    // Fetch theme options from API
+    useEffect(() => {
+        if (onboardingStep === 1 && suggestedThemes.length === 0 && !isLoadingThemes) {
+            setIsLoadingThemes(true);
+            getThemeOptionsApiV1ThemeOptionsPost({
+                body: {
+                    address: 'Singapore',
+                    use_dummy_data: true
+                },
+                baseUrl: 'http://localhost:8000'
+            })
+            .then(response => {
+                if (response.error) {
+                    console.error('Error fetching theme options:', response.error);
+                    setSuggestedThemes([]);
+                    setIsLoadingThemes(false);
+                    return;
+                }
+                
+                const data = response.data as ThemeOptionsResponse;
+                const themes = data?.themes || {};
+                const parsedThemes: ThemeOption[] = Object.entries(themes).map(([themeName, description], index) => {
+                    const { emoji, label } = parseThemeName(themeName);
+                    return {
+                        id: `theme-${index}`,
+                        label: label,
+                        icon: emoji,
+                        description: description as string
+                    };
+                });
+                setSuggestedThemes(parsedThemes);
+                setIsLoadingThemes(false);
+            })
+            .catch(error => {
+                console.error('Error fetching theme options:', error);
+                setIsLoadingThemes(false);
+                // Fallback to empty themes if API fails
+                setSuggestedThemes([]);
+            });
+        }
+    }, [onboardingStep, suggestedThemes.length, isLoadingThemes]);
 
     const handleThemeSelect = (theme: string) => {
         setTheme(theme);
@@ -165,26 +231,36 @@ const Onboarding: React.FC = () => {
                                     Choose a theme or create your own adventure
                                 </p>
 
-                                <div className="grid grid-cols-2 gap-4 mb-6">
-                                    {SUGGESTED_THEMES.map((theme) => (
-                                        <motion.button
-                                            key={theme.id}
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            onClick={() => handleThemeSelect(theme.id)}
-                                            className={`p-6 rounded-2xl border-2 transition-all ${
-                                                onboardingData.theme === theme.id
-                                                    ? 'border-blue-600 bg-blue-50 shadow-lg'
-                                                    : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
-                                            }`}
-                                        >
-                                            <div className="text-4xl mb-2">{theme.icon}</div>
-                                            <div className="text-sm font-semibold text-gray-900">
-                                                {theme.label}
-                                            </div>
-                                        </motion.button>
-                                    ))}
-                                </div>
+                                {isLoadingThemes ? (
+                                    <div className="flex justify-center items-center py-12">
+                                        <div className="text-gray-500">Loading theme suggestions...</div>
+                                    </div>
+                                ) : suggestedThemes.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-4 mb-6">
+                                        {suggestedThemes.map((theme) => (
+                                            <motion.button
+                                                key={theme.id}
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => handleThemeSelect(theme.label)}
+                                                className={`p-6 rounded-2xl border-2 transition-all ${
+                                                    onboardingData.theme === theme.label
+                                                        ? 'border-blue-600 bg-blue-50 shadow-lg'
+                                                        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-md'
+                                                }`}
+                                            >
+                                                <div className="text-4xl mb-2">{theme.icon}</div>
+                                                <div className="text-sm font-semibold text-gray-900">
+                                                    {theme.label}
+                                                </div>
+                                            </motion.button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-gray-500 text-center py-4 mb-6">
+                                        No theme suggestions available. Please enter a custom theme.
+                                    </div>
+                                )}
 
                                 {!showCustomInput ? (
                                     <motion.button
