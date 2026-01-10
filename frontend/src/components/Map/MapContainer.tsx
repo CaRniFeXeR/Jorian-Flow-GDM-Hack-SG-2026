@@ -12,9 +12,10 @@ const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 interface MapContentProps {
     showTourContent?: boolean;
     pois?: Poi[];
+    activePoiIndex?: number | null;
 }
 
-const MapContent = ({ showTourContent = true, pois }: MapContentProps) => {
+const MapContent = ({ showTourContent = true, pois, activePoiIndex }: MapContentProps) => {
     const { tour, currentStop, goToStop } = useTour();
     const map = useMap();
     // Dummy user position near the first stop
@@ -125,9 +126,27 @@ const MapContent = ({ showTourContent = true, pois }: MapContentProps) => {
         requestAnimationFrame(animate);
     };
 
-    // Fly to current stop when it changes (only when showing tour content)
+    // Fly to active POI when it changes (only when showing tour content)
     useEffect(() => {
-        if (showTourContent && map && currentStop) {
+        if (showTourContent && map && activePoiIndex !== null && activePoiIndex !== undefined && pois && pois.length > 0) {
+            // Sort POIs by order to match the sorted array in TourView
+            const sortedPois = [...pois].sort((a, b) => (a.order || 0) - (b.order || 0));
+            if (activePoiIndex < sortedPois.length) {
+                const activePoi = sortedPois[activePoiIndex];
+                if (activePoi?.gps_location && activePoi.gps_location.lat && activePoi.gps_location.lng) {
+                    animateCameraTo({
+                        center: {
+                            lat: activePoi.gps_location.lat,
+                            lng: activePoi.gps_location.lng,
+                        },
+                        zoom: 17,
+                        tilt: 45,
+                        heading: 0
+                    });
+                }
+            }
+        } else if (showTourContent && map && currentStop && activePoiIndex === undefined) {
+            // Fallback to TourContext behavior if activePoiIndex not provided
             animateCameraTo({
                 center: currentStop.position,
                 zoom: 17,
@@ -135,7 +154,7 @@ const MapContent = ({ showTourContent = true, pois }: MapContentProps) => {
                 heading: 0
             });
         }
-    }, [map, currentStop, showTourContent]);
+    }, [map, currentStop, showTourContent, activePoiIndex, pois]);
 
     if (!showTourContent) {
         // Simple map view for onboarding
@@ -162,6 +181,19 @@ const MapContent = ({ showTourContent = true, pois }: MapContentProps) => {
     // Use POI stops if available, otherwise use tour stops
     const stopsToShow = poiStops.length > 0 ? poiStops : tour.stops;
 
+    // Determine active stop based on activePoiIndex if provided, otherwise use TourContext
+    const getIsActive = (stop: any) => {
+        if (activePoiIndex !== null && activePoiIndex !== undefined && pois) {
+            const sortedPois = [...pois].sort((a, b) => (a.order || 0) - (b.order || 0));
+            if (activePoiIndex < sortedPois.length) {
+                const activePoi = sortedPois[activePoiIndex];
+                return stop.id === activePoi.order;
+            }
+            return false;
+        }
+        return stop.id === currentStop?.id;
+    };
+
     return (
         <>
             {stopsToShow.length >= 2 && <TourRoute stops={stopsToShow as any} />}
@@ -170,8 +202,14 @@ const MapContent = ({ showTourContent = true, pois }: MapContentProps) => {
                     key={stop.id}
                     index={index}
                     stop={stop as TourStop}
-                    isActive={stop.id === currentStop?.id}
-                    onClick={() => goToStop(index)}
+                    isActive={getIsActive(stop)}
+                    onClick={() => {
+                        if (activePoiIndex !== null && activePoiIndex !== undefined && pois) {
+                            // If activePoiIndex is provided, don't use TourContext
+                            return;
+                        }
+                        goToStop(index);
+                    }}
                 />
             ))}
 
@@ -242,9 +280,10 @@ interface MapContainerProps {
     height?: string;
     showTourContent?: boolean;
     pois?: Poi[];
+    activePoiIndex?: number | null;
 }
 
-const MapContainer = ({ height = '100dvh', showTourContent = true, pois }: MapContainerProps) => {
+const MapContainer = ({ height = '100dvh', showTourContent = true, pois, activePoiIndex }: MapContainerProps) => {
     const defaultCenter = { lat: 1.2868, lng: 103.8545 }; // Default to Merlion
 
     return (
@@ -264,7 +303,7 @@ const MapContainer = ({ height = '100dvh', showTourContent = true, pois }: MapCo
                     disableDoubleClickZoom={false}
                     draggable={true}
                 >
-                    <MapContent showTourContent={showTourContent} pois={pois} />
+                    <MapContent showTourContent={showTourContent} pois={pois} activePoiIndex={activePoiIndex} />
                 </GoogleMap>
             </APIProvider>
         </div>

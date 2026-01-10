@@ -52,7 +52,7 @@ const Drawer: React.FC = () => {
             </div>
 
             {/* Content */}
-            <div className="px-6 flex flex-col h-full">
+            <div className="px-2 flex flex-col h-full">
                 {/* Header Section (Always visible in closed state) */}
                 <div className="flex flex-col items-center mb-6">
                     <div className="flex items-center justify-between w-full mb-1">

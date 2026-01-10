@@ -244,7 +244,7 @@ const Onboarding: React.FC = () => {
                                     <Sparkles className="w-20 h-20 text-blue-600" />
                                 </motion.div>
                                 <h1 className="text-4xl font-bold text-gray-900 mb-4 text-center">
-                                    Welcome to Jorian Flow
+                                    Create Your Perfect Walking Tour
                                 </h1>
                                 <p className="text-lg text-gray-600 mb-8 text-center max-w-md">
                                     Discover personalized walking tours tailored to your interests. Let's create your perfect adventure.
@@ -409,6 +409,14 @@ const Onboarding: React.FC = () => {
                                 transition={{ duration: 0.3 }}
                                 className="max-w-2xl mx-auto"
                             >
+                                {/* Back button */}
+                                <button
+                                    onClick={handlePrev}
+                                    className="mb-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    aria-label="Go back"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                </button>
                                 <h2 className="text-3xl font-bold text-gray-900 mb-2">
                                     Customize your tour
                                 </h2>
@@ -473,36 +481,27 @@ const Onboarding: React.FC = () => {
                                 </div>
 
                                 {/* Navigation */}
-                                <div className="flex justify-between">
-                                    <button
-                                        onClick={handlePrev}
-                                        className="px-6 py-3 flex items-center text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                                    >
-                                        <ArrowLeft className="w-5 h-5 mr-2" />
-                                        Back
-                                    </button>
-                                    <motion.button
-                                        whileHover={{ scale: isValidating ? 1 : 1.05 }}
-                                        whileTap={{ scale: isValidating ? 1 : 0.95 }}
-                                        onClick={handleStartGeneration}
-                                        disabled={isValidating}
-                                        className={`px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-shadow flex items-center ${
-                                            isValidating ? 'opacity-75 cursor-not-allowed' : ''
-                                        }`}
-                                    >
-                                        {isValidating ? (
-                                            <>
-                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                                                Checking your input...
-                                            </>
-                                        ) : (
-                                            <>
-                                                Start Generating Tour
-                                                <Sparkles className="w-5 h-5 ml-2" />
-                                            </>
-                                        )}
-                                    </motion.button>
-                                </div>
+                                <motion.button
+                                    whileHover={{ scale: isValidating ? 1 : 1.05 }}
+                                    whileTap={{ scale: isValidating ? 1 : 0.95 }}
+                                    onClick={handleStartGeneration}
+                                    disabled={isValidating}
+                                    className={`w-full px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center ${
+                                        isValidating ? 'opacity-75 cursor-not-allowed' : ''
+                                    }`}
+                                >
+                                    {isValidating ? (
+                                        <>
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                            Checking your input...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Start Generating Tour
+                                            <Sparkles className="w-5 h-5 ml-2" />
+                                        </>
+                                    )}
+                                </motion.button>
                             </motion.div>
                         )}
                     </AnimatePresence>
