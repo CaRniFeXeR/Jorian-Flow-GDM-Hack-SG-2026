@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+:root {
+  /* Gemini-inspired Modern Palette */
+  --gemini-bg-gradient: linear-gradient(135deg, #f0f4ff 0%, #ffffff 100%);
+  --gemini-primary-gradient: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+  /* Example bright gradient */
+  --gemini-button-gradient: linear-gradient(135deg, #1A73E8 0%, #8AB4F8 100%);
+  /* Google Blue-ish */
+
+  /* Modern clean font stack */
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+
+  --color-surface: #ffffff;
+  --color-surface-glass: rgba(255, 255, 255, 0.9);
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #6b7280;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--gemini-bg-gradient);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
