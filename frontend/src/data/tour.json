@@ -1,0 +1,52 @@
+[
+    {
+        "id": 1,
+        "name": "Merlion Park",
+        "location": {
+            "lat": 1.2868,
+            "lng": 103.8545
+        },
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Merlion_Singapore_May_2015.jpg/640px-Merlion_Singapore_May_2015.jpg",
+        "audioUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    },
+    {
+        "id": 2,
+        "name": "Marina Bay Sands",
+        "location": {
+            "lat": 1.2834,
+            "lng": 103.8607
+        },
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Marina_Bay_Sands_in_the_evening_-_20101120.jpg/640px-Marina_Bay_Sands_in_the_evening_-_20101120.jpg",
+        "audioUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    },
+    {
+        "id": 3,
+        "name": "Gardens by the Bay",
+        "location": {
+            "lat": 1.2816,
+            "lng": 103.8636
+        },
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Gardens_by_the_Bay_Supertree_Grove.jpg/640px-Gardens_by_the_Bay_Supertree_Grove.jpg",
+        "audioUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    },
+    {
+        "id": 4,
+        "name": "ArtsScience Museum",
+        "location": {
+            "lat": 1.2863,
+            "lng": 103.8593
+        },
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/ArtScience_Museum_Singapore_2012.jpg/640px-ArtScience_Museum_Singapore_2012.jpg",
+        "audioUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    },
+    {
+        "id": 5,
+        "name": "Helix Bridge",
+        "location": {
+            "lat": 1.2876,
+            "lng": 103.8609
+        },
+        "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/The_Helix_Bridge_Access_2.jpg/640px-The_Helix_Bridge_Access_2.jpg",
+        "audioUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+    }
+]
