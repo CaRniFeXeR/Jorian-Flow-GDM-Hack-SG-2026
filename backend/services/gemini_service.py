@@ -472,3 +472,111 @@ IMPORTANT:
         # Fallback: return POIs in original order
         return [{"original_index": i+1, "poi_title": poi.get('poi_title'), "poi_address": poi.get('poi_address'), "order": i+1} 
                 for i, poi in enumerate(pois)]
+
+
+async def generate_narrative_stories(pois: List[Dict], user_custom_info: str) -> List[Dict]:
+    """
+    Generate coherent narrative stories for a list of POIs.
+
+    Args:
+        pois: List of POI dictionaries
+        user_custom_info: User's custom preferences/theme for context
+
+    Returns:
+        List of POIs with updated 'story' field
+    """
+    # Configure Gemini API
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not found in environment variables")
+
+    genai.configure(api_key=api_key)
+
+    # Initialize the model
+    model = genai.GenerativeModel('gemini-3-flash-preview')
+
+    # Prepare POIs for prompt (remove gps_location and google_place_img_url)
+    clean_pois = []
+    for poi in pois:
+        clean_poi = poi.copy()
+        clean_poi.pop('gps_location', None)
+        clean_poi.pop('google_place_img_url', None)
+        clean_pois.append(clean_poi)
+
+    poi_list_str = json.dumps(clean_pois, indent=2)
+
+    # Create the storytelling prompt
+    prompt = f"""You are a master storyteller and tour guide. I will provide a list of Points of Interest (POIs) in a specific order for a tour.
+    
+User Preferences/Theme: {user_custom_info}
+
+POIs:
+{poi_list_str}
+
+Your task is to write a short, engaging, and coherent narrative story for EACH POI.
+The stories should:
+1. Be informative and interesting, highlighting key features.
+2. Form a coherent narrative flow where possible, connecting one valid stop to the next (e.g., "Next, we visit...", "Just a short walk away is...").
+3. Be relevant to the user's theme ({user_custom_info}).
+4. Be concise (around 30-50 words per story).
+
+IMPORTANT: Return ONLY a valid JSON object with a single key "stories" which is a LIST of STRINGS. 
+The list must contain exactly one story string for each POI, in the same order as the input.
+
+Example Output Format:
+{{
+    "stories": [
+        "Story for first POI...",
+        "Story for second POI...",
+        "Story for third POI..."
+    ]
+}}
+
+Return ONLY the JSON object, no additional text."""
+
+    try:
+        # Generate content
+        response = model.generate_content(prompt)
+
+        # Extract the response text
+        response_text = response.text.strip()
+
+        # Remove markdown code blocks if present
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+
+        response_text = response_text.strip()
+
+        # Parse JSON response
+        result = json.loads(response_text)
+
+        if 'stories' not in result or not isinstance(result['stories'], list):
+            raise Exception("Invalid response format: 'stories' list missing")
+
+        stories = result['stories']
+
+        if len(stories) != len(pois):
+            # If counts mismatch, try to map as best as possible or log warning
+            print(f"⚠️ Warning: Generated {len(stories)} stories for {len(pois)} POIs. Mapping what is available.")
+
+        # Update POIs with stories
+        updated_pois = []
+        for i, poi in enumerate(pois):
+            updated_poi = poi.copy()
+            if i < len(stories):
+                updated_poi['story'] = stories[i]
+            else:
+                updated_poi['story'] = "Visit loop: Enjoy this location!" # Fallback
+            updated_pois.append(updated_poi)
+
+        return updated_pois
+
+    except Exception as e:
+        print(f"❌ Error generating stories: {str(e)}")
+        # Return original POIs without stories if failed
+        return pois
+

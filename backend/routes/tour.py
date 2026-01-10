@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 import logging
-from services.gemini_service import generate_theme_options, validate_user_request_guardrail
+from services.gemini_service import generate_theme_options, validate_user_request_guardrail, generate_narrative_stories
 from services.maps_service import get_address_from_coordinates
 from database.database_base import DatabaseBase
 from database.tour import TourRepository
@@ -292,6 +292,43 @@ class GenerateTourResponse(BaseModel):
                 "success": True,
                 "message": "Tour successfully generated and stored",
                 "pois_count": 5
+            }
+        }
+
+
+class GenerateStoryRequest(BaseModel):
+    transaction_id: str
+    pois: List[POI]
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
+                "pois": [
+                    {
+                        "order": 1,
+                        "poi_title": "Singapore Botanic Gardens",
+                        "google_place_id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
+                        "address": "1 Cluny Rd, Singapore 259569"
+                    }
+                ]
+            }
+        }
+
+
+class GenerateStoryResponse(BaseModel):
+    transaction_id: str
+    success: bool
+    stories_generated: int
+    updated_pois: List[POI]
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
+                "success": True,
+                "stories_generated": 5,
+                "updated_pois": []
             }
         }
 
@@ -640,6 +677,74 @@ async def generate_tour(request: GenerateTourRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Error generating tour: {str(e)}"
+        )
+
+
+@router.post("/generate_story", response_model=GenerateStoryResponse)
+async def generate_story_endpoint(request: GenerateStoryRequest):
+    """
+    Generate narrative stories for POIs in a tour.
+
+    This endpoint takes a list of POIs, generates a coherent story for each,
+    and updates the database with the stories.
+    
+    It serves as the next process after /generate_tour.
+    
+    Args:
+        request: GenerateStoryRequest with transaction_id and POI list
+
+    Returns:
+        GenerateStoryResponse with updated POIs containing stories
+    """
+    try:
+        # Get tour to retrieve context/theme
+        tour_data = tour_service.get_tour(request.transaction_id)
+        if not tour_data:
+             raise HTTPException(
+                 status_code=404, 
+                 detail=f"Tour with transaction_id {request.transaction_id} not found"
+             )
+             
+        # Extract theme or constraints for context
+        constraints = tour_data.get('constraints', {})
+        theme = tour_data.get('theme', constraints.get('custom', 'Standard Tour'))
+        
+        # Convert POIs to dicts for processing
+        pois_dicts = [poi.model_dump() for poi in request.pois]
+        
+        # Generate stories using Gemini
+        # The service handles removing sensitive fields (gps_location, etc.) before prompt
+        updated_pois_dicts = await generate_narrative_stories(
+            pois=pois_dicts,
+            user_custom_info=theme
+        )
+        
+        # Update the tour in database with the enriched POIs (now with stories)
+        success = tour_service.update_tour_pois(request.transaction_id, updated_pois_dicts)
+        
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to update tour in database"
+            )
+            
+        # Convert back to POI models
+        updated_pois = [POI(**p) for p in updated_pois_dicts]
+        
+        return GenerateStoryResponse(
+            transaction_id=request.transaction_id,
+            success=True,
+            stories_generated=len(updated_pois),
+            updated_pois=updated_pois
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating stories: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating stories: {str(e)}"
         )
 
 
