@@ -28,9 +28,9 @@ try:
     print("TourRepository operations successful.")
 
     # Test TTS Repo
-    tts_id = tts_repo.save_audio_path("hash123", "/path/to/audio.mp3")
+    tts_id = tts_repo.save_audio_path("hash123", "/path/to/audio.wav")
     path = tts_repo.get_audio_path("hash123")
-    assert path == "/path/to/audio.mp3"
+    assert path == "/path/to/audio.wav"
     print("TTSRepository operations successful.")
 
     # Cleanup

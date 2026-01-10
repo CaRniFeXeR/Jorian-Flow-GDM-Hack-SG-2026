@@ -1,3 +1,4 @@
+import logging
 import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -37,6 +38,7 @@ async def generate_tts(request: TTSRequest):
     Raises:
         HTTPException: If text is empty or generation fails
     """
+    logging.info(f"Generating TTS for text: {request.text}")
     text = request.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Text cannot be empty")
@@ -65,9 +67,9 @@ async def generate_tts(request: TTSRequest):
 
 
 @router.get("/audio/{filename}")
-async def read_mp3(filename: str):
+async def read_audio(filename: str):
     """
-    Stream the mp3 file.
+    Stream the audio file (WAV format).
     
     Args:
         filename: The audio filename
@@ -82,4 +84,4 @@ async def read_mp3(filename: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Audio file not found")
     
-    return FileResponse(file_path, media_type="audio/mpeg")
+    return FileResponse(file_path, media_type="audio/wav")
