@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, List
-from uuid import UUID
-from services.gemini_service import generate_theme_options, generate_pois
+from uuid import UUID, uuid4
+from datetime import datetime
+from services.gemini_service import generate_theme_options, generate_pois, validate_user_request_guardrail
 from services.maps_service import get_address_from_coordinates, verify_multiple_pois
 from database.database_base import DatabaseBase
 from database.tour import TourRepository
@@ -151,6 +152,51 @@ class FilterPOIResponse(BaseModel):
         }
 
 
+class GuardrailConstraints(BaseModel):
+    max_time: str
+    distance: str
+    custom: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "max_time": "3 hours",
+                "distance": "10 km",
+                "custom": "I want a chicken rice food tour"
+            }
+        }
+
+
+class GuardrailRequest(BaseModel):
+    user_address: str
+    constraints: GuardrailConstraints
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "user_address": "Orchard Road, Singapore",
+                "constraints": {
+                    "max_time": "3 hours",
+                    "distance": "10 km",
+                    "custom": "I want a chicken rice food tour"
+                }
+            }
+        }
+
+
+class GuardrailResponse(BaseModel):
+    transaction_id: str
+    valid: bool
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
+                "valid": True
+            }
+        }
+
+
 @router.post("/theme_options", response_model=ThemeOptionsResponse)
 async def get_theme_options(request: ThemeOptionsRequest):
     """
@@ -283,6 +329,97 @@ async def filter_poi_endpoint(request: FilterPOIRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Error filtering POIs: {str(e)}"
+        )
+
+
+@router.post("/guardrail", response_model=GuardrailResponse)
+async def guardrail_validation(request: GuardrailRequest):
+    """
+    Validate if a user's tour request is legitimate for their current location.
+
+    This endpoint uses Gemini AI to check if the user's custom tour preferences
+    make sense given their location. For example, a "chicken rice tour" in Singapore
+    would be valid, but the same request in New York would be invalid.
+
+    The validation result is stored in the tours table with status_code indicating
+    whether the request passed validation.
+
+    Args:
+        request: GuardrailRequest containing user address and constraints
+
+    Returns:
+        GuardrailResponse with transaction_id and validation result
+
+    Raises:
+        HTTPException: If there's an error during validation
+    """
+    try:
+        # Generate a unique transaction ID (tour UUID)
+        transaction_id = str(uuid4())
+
+        # Validate the request using Gemini
+        is_valid = await validate_user_request_guardrail(
+            user_address=request.user_address,
+            max_time=request.constraints.max_time,
+            distance=request.constraints.distance,
+            custom_message=request.constraints.custom
+        )
+
+        # Helper function to parse time to minutes
+        def parse_time_to_minutes(time_str: str) -> int:
+            time_lower = time_str.lower()
+            if 'hour' in time_lower:
+                hours = float(''.join(filter(lambda x: x.isdigit() or x == '.', time_lower.split('hour')[0])))
+                return int(hours * 60)
+            elif 'min' in time_lower:
+                return int(''.join(filter(str.isdigit, time_lower)))
+            elif 'day' in time_lower:
+                days = float(''.join(filter(lambda x: x.isdigit() or x == '.', time_lower.split('day')[0])))
+                return int(days * 24 * 60)
+            return 120  # Default 2 hours
+
+        # Helper function to parse distance to km
+        def parse_distance_to_km(distance_str: str) -> float:
+            distance_lower = distance_str.lower()
+            if 'km' in distance_lower or 'kilometer' in distance_lower:
+                return float(''.join(filter(lambda x: x.isdigit() or x == '.', distance_lower.split('km')[0])))
+            elif 'mile' in distance_lower:
+                miles = float(''.join(filter(lambda x: x.isdigit() or x == '.', distance_lower.split('mile')[0])))
+                return miles * 1.60934
+            elif 'm' in distance_lower and 'km' not in distance_lower:
+                meters = float(''.join(filter(str.isdigit, distance_lower)))
+                return meters / 1000
+            return 5.0  # Default 5 km
+
+        # Prepare tour data for database
+        tour_data = {
+            "id": transaction_id,
+            "theme": request.constraints.custom,
+            "status_code": "valid" if is_valid else "invalid",
+            "max_distance_km": parse_distance_to_km(request.constraints.distance),
+            "max_duration_minutes": parse_time_to_minutes(request.constraints.max_time),
+            "introduction": f"Tour request at {request.user_address}",
+            "pois": [],
+            "storyline_keywords": request.user_address
+        }
+
+        # Store in tours table
+        tour_repo.add_tour(tour_data)
+
+        return GuardrailResponse(
+            transaction_id=transaction_id,
+            valid=is_valid
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error validating request: {str(e)}"
         )
 
 

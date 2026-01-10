@@ -35,6 +35,7 @@ async def root():
             "/theme_options": "POST - Generate thematic tour options for a location",
             "/generate_poi": "POST - Generate POIs based on coordinates and constraints",
             "/filter_poi": "POST - Filter and verify POIs using Google Maps Places API",
+            "/guardrail": "POST - Validate if tour request is legitimate for user location",
             "/tts/tts": "POST - Generate text-to-speech audio",
             "/tts/audio/{filename}": "GET - Stream audio file"
         }
