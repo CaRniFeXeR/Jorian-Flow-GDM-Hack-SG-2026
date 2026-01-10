@@ -105,11 +105,13 @@ class GeneratePOIResponse(BaseModel):
 
 
 class FilterPOIRequest(BaseModel):
+    transaction_id: str
     pois: List[POI]
 
     class Config:
         json_schema_extra = {
             "example": {
+                "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
                 "pois": [
                     {
                         "poi_title": "Singapore Botanic Gardens",
@@ -197,45 +199,16 @@ class GuardrailResponse(BaseModel):
         }
 
 
-class GenerateTourConstraints(BaseModel):
-    max_time: str
-    distance: str
-    custom: str
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "max_time": "3 hours",
-                "distance": "10 km",
-                "custom": "I want a chicken rice food tour"
-            }
-        }
 
 
 class GenerateTourRequest(BaseModel):
     transaction_id: str
-    pois: List[POI]
-    constraints: GenerateTourConstraints
 
     class Config:
         json_schema_extra = {
             "example": {
-                "transaction_id": "550e8400-e29b-41d4-a716-446655440000",
-                "pois": [
-                    {
-                        "poi_title": "Singapore Botanic Gardens",
-                        "poi_address": "1 Cluny Rd, Singapore 259569"
-                    },
-                    {
-                        "poi_title": "ION Orchard",
-                        "poi_address": "2 Orchard Turn, Singapore 238801"
-                    }
-                ],
-                "constraints": {
-                    "max_time": "3 hours",
-                    "distance": "10 km",
-                    "custom": "I want a historical tour"
-                }
+                "transaction_id": "e3d6b790-4604-4570-8fde-c7d278c1ad9e"
             }
         }
 
@@ -374,6 +347,12 @@ async def filter_poi_endpoint(request: FilterPOIRequest):
         # Get total verified count
         total_verified = len(verified_pois)
 
+        # Update tour with filtered POIs
+        tour_repo.update_tour_by_uuid(
+            tour_uuid=request.transaction_id,
+            updates={"filtered_candidate_poi_list": [poi.model_dump() for poi in verified_pois]}
+        )
+
         return FilterPOIResponse(
             verified_pois=verified_pois,
             total_input=total_input,
@@ -460,7 +439,8 @@ async def guardrail_validation(request: GuardrailRequest):
             "max_duration_minutes": parse_time_to_minutes(request.constraints.max_time),
             "introduction": f"Tour request at {request.user_address}",
             "pois": [],
-            "storyline_keywords": request.user_address
+            "storyline_keywords": request.user_address,
+            "constraints": request.constraints.model_dump()
         }
 
         # Store in tours table
@@ -517,17 +497,30 @@ async def generate_tour(request: GenerateTourRequest):
 
         # Get the user address from the tour
         user_address = tour_data.get('storyline_keywords', '')
-        theme = tour_data.get('theme', request.constraints.custom)
+        
+        # Retrieve constraints from tour data
+        constraints = tour_data.get('constraints', {})
+        theme = tour_data.get('theme', constraints.get('custom', ''))
+        max_time = constraints.get('max_time', '2 hours')
+        distance = constraints.get('distance', '5 km')
 
-        # Convert POI models to dictionaries
-        pois_dict = [poi.model_dump() for poi in request.pois]
+        # Retrieve filtered POIs from tour data
+        filtered_pois = tour_data.get('filtered_candidate_poi_list', [])
+        if not filtered_pois:
+             raise HTTPException(
+                status_code=400,
+                detail="No filtered POIs found for this tour. Please call /filter_poi first."
+            )
+            
+        # Convert POI models to dictionaries if they aren't already
+        pois_dict = filtered_pois
 
         # Use Gemini to order the POIs optimally
         ordered_pois = await order_pois_for_tour(
             pois=pois_dict,
             user_address=user_address,
-            max_time=request.constraints.max_time,
-            distance=request.constraints.distance,
+            max_time=max_time,
+            distance=distance,
             theme=theme
         )
 

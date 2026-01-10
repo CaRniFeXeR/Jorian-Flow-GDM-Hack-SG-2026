@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 
@@ -41,6 +41,8 @@ class Tour(BaseModel):
     introduction: str = Field(..., description="Introduction text for the tour")
     pois: List[POI] = Field(default_factory=list, description="List of Points of Interest")
     storyline_keywords: str = Field(..., description="Keywords for the tour storyline")
+    constraints: Optional[Dict[str, Any]] = Field(None, description="Constraints used for the tour")
+    filtered_candidate_poi_list: Optional[List[POI]] = Field(None, description="List of candidate POIs after filtering")
 
     class Config:
         json_schema_extra = {
@@ -63,6 +65,23 @@ class Tour(BaseModel):
                         "story_keywords": "nature, history"
                     }
                 ],
-                "storyline_keywords": "history, architecture, culture"
+                "storyline_keywords": "history, architecture, culture",
+                "constraints": {
+                    "max_time": "3 hours",
+                    "distance": "10 km",
+                    "custom": "I want a chicken rice food tour"
+                },
+                "filtered_candidate_poi_list": [
+                     {
+                        "order": 1,
+                        "google_place_id": "ChIJN1t_tDeuEmsRUsoyG83frY4",
+                        "google_place_img_url": "https://example.com/image.jpg",
+                        "address": "1 Cluny Rd, Singapore 259569",
+                        "google_maps_name": "Singapore Botanic Gardens",
+                        "story": "A beautiful botanical garden",
+                        "pin_image_url": "https://example.com/pin.png",
+                        "story_keywords": "nature, history"
+                    }
+                ]
             }
         }
