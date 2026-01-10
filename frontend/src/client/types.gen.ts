@@ -15,7 +15,7 @@ export type FilterPoiRequest = {
     /**
      * Pois
      */
-    pois: Array<PoiInput>;
+    pois: Array<Poi>;
 };
 
 /**
@@ -25,7 +25,7 @@ export type FilterPoiResponse = {
     /**
      * Verified Pois
      */
-    verified_pois: Array<RoutesTourPoi>;
+    verified_pois: Array<Poi>;
     /**
      * Total Input
      */
@@ -80,7 +80,7 @@ export type GeneratePoiResponse = {
     /**
      * Pois
      */
-    pois: Array<RoutesTourPoi>;
+    pois: Array<Poi>;
 };
 
 /**
@@ -230,20 +230,6 @@ export type Poi = {
      * GPS location with latitude and longitude
      */
     gps_location?: GpsLocation | null;
-};
-
-/**
- * POI
- */
-export type PoiInput = {
-    /**
-     * Poi Title
-     */
-    poi_title: string;
-    /**
-     * Poi Address
-     */
-    poi_address: string;
 };
 
 /**
@@ -398,20 +384,6 @@ export type ValidationError = {
      * Error Type
      */
     type: string;
-};
-
-/**
- * POI
- */
-export type RoutesTourPoi = {
-    /**
-     * Poi Title
-     */
-    poi_title: string;
-    /**
-     * Poi Address
-     */
-    poi_address: string;
 };
 
 export type GenerateTtsApiV1TtsTtsPostData = {
