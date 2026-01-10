@@ -126,7 +126,38 @@ def verify_poi_exists(poi_title: str, poi_address: str) -> bool:
             print(f"❌ Address not found: {poi_address}")
             return False
 
+        result = geocode_result[0]
+
+        # Check if this is a partial match (Google couldn't find exact address)
+        if result.get('partial_match', False):
+            print(f"❌ Partial match only (address doesn't fully exist): {poi_address}")
+            print(f"   Google returned: {result.get('formatted_address')}")
+            return False
+
+        # Check the location type - it should be specific (street address, premise, etc.)
+        # If it's just a city or country, the address is too vague/doesn't exist
+        geometry = result.get('geometry', {})
+        location_type = geometry.get('location_type', '')
+
+        # ROOFTOP is exact, RANGE_INTERPOLATED is very close
+        # GEOMETRIC_CENTER and APPROXIMATE are too vague
+        if location_type not in ['ROOFTOP', 'RANGE_INTERPOLATED']:
+            print(f"❌ Location too vague (type: {location_type}): {poi_address}")
+            print(f"   Google returned: {result.get('formatted_address')}")
+            return False
+
+        # Check address types - should include street_address or premise
+        types = result.get('types', [])
+        valid_types = ['street_address', 'premise', 'establishment', 'point_of_interest']
+
+        if not any(valid_type in types for valid_type in valid_types):
+            print(f"❌ Address is not specific enough (types: {types}): {poi_address}")
+            print(f"   Google returned: {result.get('formatted_address')}")
+            return False
+
+        formatted_address = result.get('formatted_address', '')
         print(f"✅ Verified address: {poi_address}")
+        print(f"   Maps address: {formatted_address}")
         return True
 
     except googlemaps.exceptions.ApiError as e:

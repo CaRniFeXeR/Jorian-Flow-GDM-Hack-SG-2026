@@ -10,7 +10,7 @@ from database.database_base import DatabaseBase
 from database.tour import TourRepository
 from database.tts_storage import TTSRepository
 from gemini_service import generate_theme_options, generate_pois
-from maps_service import get_address_from_coordinates
+from maps_service import get_address_from_coordinates, verify_multiple_pois
 
 load_dotenv()
 
@@ -122,6 +122,54 @@ class GeneratePOIResponse(BaseModel):
         }
 
 
+class FilterPOIRequest(BaseModel):
+    pois: List[POI]
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "pois": [
+                    {
+                        "poi_title": "Singapore Botanic Gardens",
+                        "poi_address": "1 Cluny Rd, Singapore 259569"
+                    },
+                    {
+                        "poi_title": "Fake Museum",
+                        "poi_address": "123 Nonexistent St, Singapore"
+                    },
+                    {
+                        "poi_title": "ION Orchard",
+                        "poi_address": "2 Orchard Turn, Singapore 238801"
+                    }
+                ]
+            }
+        }
+
+
+class FilterPOIResponse(BaseModel):
+    verified_pois: List[POI]
+    total_input: int
+    total_verified: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "verified_pois": [
+                    {
+                        "poi_title": "Singapore Botanic Gardens",
+                        "poi_address": "1 Cluny Rd, Singapore 259569"
+                    },
+                    {
+                        "poi_title": "ION Orchard",
+                        "poi_address": "2 Orchard Turn, Singapore 238801"
+                    }
+                ],
+                "total_input": 3,
+                "total_verified": 2
+            }
+        }
+
+
 @app.get("/")
 async def root():
     return {
@@ -129,7 +177,8 @@ async def root():
         "version": "1.0.0",
         "endpoints": {
             "/theme_options": "POST - Generate thematic tour options for a location",
-            "/generate_poi": "POST - Generate POIs based on coordinates and constraints"
+            "/generate_poi": "POST - Generate POIs based on coordinates and constraints",
+            "/filter_poi": "POST - Filter and verify POIs using Google Maps Places API"
         }
     }
 
@@ -211,6 +260,57 @@ async def generate_poi_endpoint(request: GeneratePOIRequest):
         )
 
 
+@app.post("/filter_poi", response_model=FilterPOIResponse)
+async def filter_poi_endpoint(request: FilterPOIRequest):
+    """
+    Filter and verify POIs to check if they actually exist in reality.
+
+    This endpoint uses Google Maps Places API to verify each POI.
+    Only POIs that are found and verified are included in the response.
+
+    Args:
+        request: FilterPOIRequest containing a list of POIs to verify
+
+    Returns:
+        FilterPOIResponse with verified POIs and statistics
+
+    Raises:
+        HTTPException: If there's an error during verification
+    """
+    try:
+        # Convert POI models to dictionaries for verification
+        pois_dict = [poi.model_dump() for poi in request.pois]
+
+        # Get total input count
+        total_input = len(pois_dict)
+
+        # Verify POIs using Google Maps Places API
+        verified_pois_dict = verify_multiple_pois(pois_dict)
+
+        # Convert verified POIs back to POI model objects
+        verified_pois = [POI(**poi) for poi in verified_pois_dict]
+
+        # Get total verified count
+        total_verified = len(verified_pois)
+
+        return FilterPOIResponse(
+            verified_pois=verified_pois,
+            total_input=total_input,
+            total_verified=total_verified
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error filtering POIs: {str(e)}"
+        )
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
@@ -218,4 +318,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level = "debug", access_log=True)
