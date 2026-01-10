@@ -98,7 +98,7 @@ def get_detailed_location_info(latitude: float, longitude: float) -> dict:
         raise Exception(f"Error getting location information: {str(e)}")
 
 
-def verify_poi_exists(poi_title: str, address: str) -> bool:
+def verify_poi_exists(poi_title: str, address: str) -> Optional[str]:
     """
     Verify if a POI exists in reality by geocoding its address.
 
@@ -107,10 +107,7 @@ def verify_poi_exists(poi_title: str, address: str) -> bool:
         address: The address of the POI
 
     Returns:
-        True if the POI address exists and is verified, False otherwise
-
-    Raises:
-        ValueError: If API key is not found
+        The formatted address if verified, None otherwise
     """
     api_key = os.getenv("GOOGLE_MAPS_API_KEY")
     if not api_key:
@@ -124,7 +121,7 @@ def verify_poi_exists(poi_title: str, address: str) -> bool:
 
         if not geocode_result or len(geocode_result) == 0:
             print(f"❌ Address not found: {address}")
-            return False
+            return None
 
         result = geocode_result[0]
 
@@ -132,7 +129,7 @@ def verify_poi_exists(poi_title: str, address: str) -> bool:
         if result.get('partial_match', False):
             print(f"❌ Partial match only (address doesn't fully exist): {address}")
             print(f"   Google returned: {result.get('formatted_address')}")
-            return False
+            return None
 
         # Check the location type - it should be specific (street address, premise, etc.)
         # If it's just a city or country, the address is too vague/doesn't exist
@@ -144,7 +141,7 @@ def verify_poi_exists(poi_title: str, address: str) -> bool:
         if location_type not in ['ROOFTOP', 'RANGE_INTERPOLATED']:
             print(f"❌ Location too vague (type: {location_type}): {address}")
             print(f"   Google returned: {result.get('formatted_address')}")
-            return False
+            return None
 
         # Check address types - should include street_address or premise
         types = result.get('types', [])
@@ -153,19 +150,19 @@ def verify_poi_exists(poi_title: str, address: str) -> bool:
         if not any(valid_type in types for valid_type in valid_types):
             print(f"❌ Address is not specific enough (types: {types}): {address}")
             print(f"   Google returned: {result.get('formatted_address')}")
-            return False
+            return None
 
         formatted_address = result.get('formatted_address', '')
         print(f"✅ Verified address: {address}")
         print(f"   Maps address: {formatted_address}")
-        return True
+        return formatted_address
 
     except googlemaps.exceptions.ApiError as e:
         print(f"❌ Google Maps API error while verifying POI '{poi_title}': {str(e)}")
-        return False
+        return None
     except Exception as e:
         print(f"❌ Error verifying POI '{poi_title}': {str(e)}")
-        return False
+        return None
 
 
 def verify_multiple_pois(pois: list) -> list:
@@ -192,7 +189,10 @@ def verify_multiple_pois(pois: list) -> list:
             continue
 
         # Verify if the POI exists
-        if verify_poi_exists(poi_title, address):
+        verified_address = verify_poi_exists(poi_title, address)
+        if verified_address:
+            # Update the address with the official Google Maps formatted address
+            poi['address'] = verified_address
             verified_pois.append(poi)
 
     return verified_pois
