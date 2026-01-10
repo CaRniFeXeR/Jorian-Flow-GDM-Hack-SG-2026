@@ -55,6 +55,38 @@ export type GpsLocation = {
 };
 
 /**
+ * GenerateIntroductionRequest
+ */
+export type GenerateIntroductionRequest = {
+    /**
+     * Transaction Id
+     */
+    transaction_id: string;
+    /**
+     * Pois
+     */
+    pois: Array<Poi>;
+};
+
+/**
+ * GenerateIntroductionResponse
+ */
+export type GenerateIntroductionResponse = {
+    /**
+     * Transaction Id
+     */
+    transaction_id: string;
+    /**
+     * Success
+     */
+    success: boolean;
+    /**
+     * Introduction
+     */
+    introduction: string;
+};
+
+/**
  * GeneratePOIRequest
  */
 export type GeneratePoiRequest = {
@@ -81,6 +113,42 @@ export type GeneratePoiResponse = {
      * Pois
      */
     pois: Array<IntermediatePoi>;
+};
+
+/**
+ * GenerateStoryRequest
+ */
+export type GenerateStoryRequest = {
+    /**
+     * Transaction Id
+     */
+    transaction_id: string;
+    /**
+     * Pois
+     */
+    pois: Array<Poi>;
+};
+
+/**
+ * GenerateStoryResponse
+ */
+export type GenerateStoryResponse = {
+    /**
+     * Transaction Id
+     */
+    transaction_id: string;
+    /**
+     * Success
+     */
+    success: boolean;
+    /**
+     * Stories Generated
+     */
+    stories_generated: number;
+    /**
+     * Updated Pois
+     */
+    updated_pois: Array<Poi>;
 };
 
 /**
@@ -371,7 +439,7 @@ export type Tour = {
      *
      * Introduction text for the tour
      */
-    introduction: string;
+    introduction?: string | null;
     /**
      * Pois
      *
@@ -595,6 +663,56 @@ export type GenerateTourApiV1GenerateTourPostResponses = {
 };
 
 export type GenerateTourApiV1GenerateTourPostResponse = GenerateTourApiV1GenerateTourPostResponses[keyof GenerateTourApiV1GenerateTourPostResponses];
+
+export type GenerateIntroductionEndpointApiV1GenerateIntroductionPostData = {
+    body: GenerateIntroductionRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/generate_introduction';
+};
+
+export type GenerateIntroductionEndpointApiV1GenerateIntroductionPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GenerateIntroductionEndpointApiV1GenerateIntroductionPostError = GenerateIntroductionEndpointApiV1GenerateIntroductionPostErrors[keyof GenerateIntroductionEndpointApiV1GenerateIntroductionPostErrors];
+
+export type GenerateIntroductionEndpointApiV1GenerateIntroductionPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: GenerateIntroductionResponse;
+};
+
+export type GenerateIntroductionEndpointApiV1GenerateIntroductionPostResponse = GenerateIntroductionEndpointApiV1GenerateIntroductionPostResponses[keyof GenerateIntroductionEndpointApiV1GenerateIntroductionPostResponses];
+
+export type GenerateStoryEndpointApiV1GenerateStoryPostData = {
+    body: GenerateStoryRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/generate_story';
+};
+
+export type GenerateStoryEndpointApiV1GenerateStoryPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GenerateStoryEndpointApiV1GenerateStoryPostError = GenerateStoryEndpointApiV1GenerateStoryPostErrors[keyof GenerateStoryEndpointApiV1GenerateStoryPostErrors];
+
+export type GenerateStoryEndpointApiV1GenerateStoryPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: GenerateStoryResponse;
+};
+
+export type GenerateStoryEndpointApiV1GenerateStoryPostResponse = GenerateStoryEndpointApiV1GenerateStoryPostResponses[keyof GenerateStoryEndpointApiV1GenerateStoryPostResponses];
 
 export type GetTourByIdApiV1TourIdIsDummyGetData = {
     body?: never;

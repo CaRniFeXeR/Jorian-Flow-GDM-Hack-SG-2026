@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { FilterPoiEndpointApiV1FilterPoiPostData, FilterPoiEndpointApiV1FilterPoiPostErrors, FilterPoiEndpointApiV1FilterPoiPostResponses, GeneratePoiEndpointApiV1GeneratePoiPostData, GeneratePoiEndpointApiV1GeneratePoiPostErrors, GeneratePoiEndpointApiV1GeneratePoiPostResponses, GenerateTourApiV1GenerateTourPostData, GenerateTourApiV1GenerateTourPostErrors, GenerateTourApiV1GenerateTourPostResponses, GenerateTtsApiV1TtsTtsPostData, GenerateTtsApiV1TtsTtsPostErrors, GenerateTtsApiV1TtsTtsPostResponses, GetThemeOptionsApiV1ThemeOptionsPostData, GetThemeOptionsApiV1ThemeOptionsPostErrors, GetThemeOptionsApiV1ThemeOptionsPostResponses, GetTourByIdApiV1TourIdIsDummyGetData, GetTourByIdApiV1TourIdIsDummyGetErrors, GetTourByIdApiV1TourIdIsDummyGetResponses, GuardrailValidationApiV1GuardrailPostData, GuardrailValidationApiV1GuardrailPostErrors, GuardrailValidationApiV1GuardrailPostResponses, HealthCheckHealthGetData, HealthCheckHealthGetResponses, ReadAudioApiV1TtsAudioFilenameGetData, ReadAudioApiV1TtsAudioFilenameGetErrors, ReadAudioApiV1TtsAudioFilenameGetResponses, RootGetData, RootGetResponses } from './types.gen';
+import type { FilterPoiEndpointApiV1FilterPoiPostData, FilterPoiEndpointApiV1FilterPoiPostErrors, FilterPoiEndpointApiV1FilterPoiPostResponses, GenerateIntroductionEndpointApiV1GenerateIntroductionPostData, GenerateIntroductionEndpointApiV1GenerateIntroductionPostErrors, GenerateIntroductionEndpointApiV1GenerateIntroductionPostResponses, GeneratePoiEndpointApiV1GeneratePoiPostData, GeneratePoiEndpointApiV1GeneratePoiPostErrors, GeneratePoiEndpointApiV1GeneratePoiPostResponses, GenerateStoryEndpointApiV1GenerateStoryPostData, GenerateStoryEndpointApiV1GenerateStoryPostErrors, GenerateStoryEndpointApiV1GenerateStoryPostResponses, GenerateTourApiV1GenerateTourPostData, GenerateTourApiV1GenerateTourPostErrors, GenerateTourApiV1GenerateTourPostResponses, GenerateTtsApiV1TtsTtsPostData, GenerateTtsApiV1TtsTtsPostErrors, GenerateTtsApiV1TtsTtsPostResponses, GetThemeOptionsApiV1ThemeOptionsPostData, GetThemeOptionsApiV1ThemeOptionsPostErrors, GetThemeOptionsApiV1ThemeOptionsPostResponses, GetTourByIdApiV1TourIdIsDummyGetData, GetTourByIdApiV1TourIdIsDummyGetErrors, GetTourByIdApiV1TourIdIsDummyGetResponses, GuardrailValidationApiV1GuardrailPostData, GuardrailValidationApiV1GuardrailPostErrors, GuardrailValidationApiV1GuardrailPostResponses, HealthCheckHealthGetData, HealthCheckHealthGetResponses, ReadAudioApiV1TtsAudioFilenameGetData, ReadAudioApiV1TtsAudioFilenameGetErrors, ReadAudioApiV1TtsAudioFilenameGetResponses, RootGetData, RootGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -195,6 +195,55 @@ export const guardrailValidationApiV1GuardrailPost = <ThrowOnError extends boole
  */
 export const generateTourApiV1GenerateTourPost = <ThrowOnError extends boolean = false>(options: Options<GenerateTourApiV1GenerateTourPostData, ThrowOnError>) => (options.client ?? client).post<GenerateTourApiV1GenerateTourPostResponses, GenerateTourApiV1GenerateTourPostErrors, ThrowOnError>({
     url: '/api/v1/generate_tour',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Generate Introduction Endpoint
+ *
+ * Generate an introduction for the tour.
+ *
+ * This endpoint takes a list of POIs and generates a short introduction
+ * describing the tour. It runs before story generation.
+ * It updates the tour's 'introduction' field in the database.
+ *
+ * Args:
+ * request: GenerateIntroductionRequest with transaction_id and POI list
+ *
+ * Returns:
+ * GenerateIntroductionResponse with the generated introduction
+ */
+export const generateIntroductionEndpointApiV1GenerateIntroductionPost = <ThrowOnError extends boolean = false>(options: Options<GenerateIntroductionEndpointApiV1GenerateIntroductionPostData, ThrowOnError>) => (options.client ?? client).post<GenerateIntroductionEndpointApiV1GenerateIntroductionPostResponses, GenerateIntroductionEndpointApiV1GenerateIntroductionPostErrors, ThrowOnError>({
+    url: '/api/v1/generate_introduction',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Generate Story Endpoint
+ *
+ * Generate narrative stories for POIs in a tour.
+ *
+ * This endpoint takes a list of POIs, generates a coherent story for each,
+ * and updates the database with the stories.
+ *
+ * It serves as the next process after /generate_tour.
+ *
+ * Args:
+ * request: GenerateStoryRequest with transaction_id and POI list
+ *
+ * Returns:
+ * GenerateStoryResponse with updated POIs containing stories
+ */
+export const generateStoryEndpointApiV1GenerateStoryPost = <ThrowOnError extends boolean = false>(options: Options<GenerateStoryEndpointApiV1GenerateStoryPostData, ThrowOnError>) => (options.client ?? client).post<GenerateStoryEndpointApiV1GenerateStoryPostResponses, GenerateStoryEndpointApiV1GenerateStoryPostErrors, ThrowOnError>({
+    url: '/api/v1/generate_story',
     ...options,
     headers: {
         'Content-Type': 'application/json',
