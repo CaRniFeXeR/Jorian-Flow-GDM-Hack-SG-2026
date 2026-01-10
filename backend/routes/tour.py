@@ -17,6 +17,7 @@ tour_repo = TourRepository(db_base)
 
 class ThemeOptionsRequest(BaseModel):
     address: str
+    use_dummy_data: bool = False
 
     class Config:
         json_schema_extra = {
@@ -165,6 +166,13 @@ async def get_theme_options(request: ThemeOptionsRequest):
         HTTPException: If there's an error generating themes
     """
     try:
+
+        if request.use_dummy_data:
+            return ThemeOptionsResponse(themes={
+                "🏛️ Historical Heritage Tour": "Explore the colonial architecture and historical landmarks along this iconic street",
+                "🛍️ Shopping & Fashion Tour": "Discover luxury brands and modern shopping centers in Singapore's premier retail district",
+                "🎨 Cultural Fusion Tour": "Experience the blend of traditional and contemporary Asian culture"
+            })
         themes = await generate_theme_options(request.address)
         return ThemeOptionsResponse(themes=themes)
     except Exception as e:

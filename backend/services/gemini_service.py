@@ -30,11 +30,13 @@ IMPORTANT: Return ONLY a valid JSON object with the following structure, nothing
 }}
 
 Guidelines:
-- Make theme names catchy and descriptive (e.g., "Historical Heritage Walk", "Foodie's Paradise Tour", "Architectural Marvels")
+- Each theme name MUST start with a relevant emoji that represents the theme (e.g., "🏛️ Historical Heritage Walk", "🍜 Foodie's Paradise Tour", "🏗️ Architectural Marvels")
+- Make theme names catchy and descriptive
 - Keep summaries to one engaging sentence (max 20 words)
 - Consider the location's history, culture, food, architecture, nature, shopping, nightlife, and local experiences
 - Make each theme distinct and appealing to different traveler interests
 - Ensure the JSON is properly formatted with double quotes
+- Choose emojis that are relevant and help visualize the theme at a glance
 
 Return ONLY the JSON object, no additional text or explanation."""
 
