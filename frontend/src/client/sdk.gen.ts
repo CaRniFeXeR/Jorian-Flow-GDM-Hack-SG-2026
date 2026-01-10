@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { FilterPoiEndpointApiV1FilterPoiPostData, FilterPoiEndpointApiV1FilterPoiPostErrors, FilterPoiEndpointApiV1FilterPoiPostResponses, GeneratePoiEndpointApiV1GeneratePoiPostData, GeneratePoiEndpointApiV1GeneratePoiPostErrors, GeneratePoiEndpointApiV1GeneratePoiPostResponses, GenerateTourApiV1GenerateTourPostData, GenerateTourApiV1GenerateTourPostErrors, GenerateTourApiV1GenerateTourPostResponses, GenerateTtsApiV1TtsTtsPostData, GenerateTtsApiV1TtsTtsPostErrors, GenerateTtsApiV1TtsTtsPostResponses, GetThemeOptionsApiV1ThemeOptionsPostData, GetThemeOptionsApiV1ThemeOptionsPostErrors, GetThemeOptionsApiV1ThemeOptionsPostResponses, GetTourByIdApiV1TourIdGetData, GetTourByIdApiV1TourIdGetErrors, GetTourByIdApiV1TourIdGetResponses, GuardrailValidationApiV1GuardrailPostData, GuardrailValidationApiV1GuardrailPostErrors, GuardrailValidationApiV1GuardrailPostResponses, HealthCheckHealthGetData, HealthCheckHealthGetResponses, ReadAudioApiV1TtsAudioFilenameGetData, ReadAudioApiV1TtsAudioFilenameGetErrors, ReadAudioApiV1TtsAudioFilenameGetResponses, RootGetData, RootGetResponses } from './types.gen';
+import type { FilterPoiEndpointApiV1FilterPoiPostData, FilterPoiEndpointApiV1FilterPoiPostErrors, FilterPoiEndpointApiV1FilterPoiPostResponses, GeneratePoiEndpointApiV1GeneratePoiPostData, GeneratePoiEndpointApiV1GeneratePoiPostErrors, GeneratePoiEndpointApiV1GeneratePoiPostResponses, GenerateTourApiV1GenerateTourPostData, GenerateTourApiV1GenerateTourPostErrors, GenerateTourApiV1GenerateTourPostResponses, GenerateTtsApiV1TtsTtsPostData, GenerateTtsApiV1TtsTtsPostErrors, GenerateTtsApiV1TtsTtsPostResponses, GetThemeOptionsApiV1ThemeOptionsPostData, GetThemeOptionsApiV1ThemeOptionsPostErrors, GetThemeOptionsApiV1ThemeOptionsPostResponses, GetTourByIdApiV1TourIdIsDummyGetData, GetTourByIdApiV1TourIdIsDummyGetErrors, GetTourByIdApiV1TourIdIsDummyGetResponses, GuardrailValidationApiV1GuardrailPostData, GuardrailValidationApiV1GuardrailPostErrors, GuardrailValidationApiV1GuardrailPostResponses, HealthCheckHealthGetData, HealthCheckHealthGetResponses, ReadAudioApiV1TtsAudioFilenameGetData, ReadAudioApiV1TtsAudioFilenameGetErrors, ReadAudioApiV1TtsAudioFilenameGetResponses, RootGetData, RootGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -211,7 +211,7 @@ export const generateTourApiV1GenerateTourPost = <ThrowOnError extends boolean =
  * Raises:
  * HTTPException: If the tour is not found or there's an error retrieving it
  */
-export const getTourByIdApiV1TourIdGet = <ThrowOnError extends boolean = false>(options: Options<GetTourByIdApiV1TourIdGetData, ThrowOnError>) => (options.client ?? client).get<GetTourByIdApiV1TourIdGetResponses, GetTourByIdApiV1TourIdGetErrors, ThrowOnError>({ url: '/api/v1/{tour_id}', ...options });
+export const getTourByIdApiV1TourIdIsDummyGet = <ThrowOnError extends boolean = false>(options: Options<GetTourByIdApiV1TourIdIsDummyGetData, ThrowOnError>) => (options.client ?? client).get<GetTourByIdApiV1TourIdIsDummyGetResponses, GetTourByIdApiV1TourIdIsDummyGetErrors, ThrowOnError>({ url: '/api/v1/{tour_id}/{is_dummy}', ...options });
 
 /**
  * Root

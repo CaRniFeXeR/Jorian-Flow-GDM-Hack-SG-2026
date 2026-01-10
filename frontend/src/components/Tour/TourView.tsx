@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { getTourByIdApiV1TourIdGet } from '../../client';
+import { getTourByIdApiV1TourIdIsDummyGet } from '../../client';
 import type { Tour, Poi } from '../../client/types.gen';
 import MapContainer from '../Map/MapContainer';
 import AudioPlayer from '../Audio/AudioPlayer';
@@ -19,8 +19,8 @@ const TourView: React.FC = () => {
 
         const fetchTour = async () => {
             try {
-                const response = await getTourByIdApiV1TourIdGet({
-                    path: { tour_id: tourId },
+                const response = await getTourByIdApiV1TourIdIsDummyGet({
+                    path: { tour_id: tourId, is_dummy: true },
                     baseUrl: 'http://localhost:8000',
                 });
 

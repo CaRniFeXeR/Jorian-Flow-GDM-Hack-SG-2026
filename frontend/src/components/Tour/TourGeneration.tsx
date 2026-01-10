@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getTourByIdApiV1TourIdGet } from '../../client';
 import type { Tour } from '../../client/types.gen';
 import MapContainer from '../Map/MapContainer';
+import { getTourByIdApiV1TourIdIsDummyGet } from '../../client';
 
 const loadingMessages = [
     'Setting up the tour...',
@@ -28,8 +28,8 @@ const TourGeneration: React.FC = () => {
 
         const pollTour = async () => {
             try {
-                const response = await getTourByIdApiV1TourIdGet({
-                    path: { tour_id: tourId },
+                const response = await getTourByIdApiV1TourIdIsDummyGet({
+                    path: { tour_id: tourId, is_dummy: true },
                     baseUrl: 'http://localhost:8000',
                 });
 

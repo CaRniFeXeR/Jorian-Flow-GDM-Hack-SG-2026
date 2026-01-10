@@ -599,8 +599,8 @@ async def generate_tour(request: GenerateTourRequest):
         )
 
 
-@router.get("/{tour_id}", response_model=Tour)
-async def get_tour_by_id(tour_id: UUID):
+@router.get("/{tour_id}/{is_dummy}", response_model=Tour)
+async def get_tour_by_id(tour_id: UUID, is_dummy: bool = False):
     """
     Get a tour by its UUID.
 
@@ -639,6 +639,71 @@ async def get_tour_by_id(tour_id: UUID):
             tour_data['pois'] = []
         elif tour_data['pois'] is None:
             tour_data['pois'] = []
+        
+        # If is_dummy is True, replace POIs with dummy Singapore POIs
+        if is_dummy:
+            tour_data['pois'] = [
+                {
+                    "order": 1,
+                    "poi_title": "Marina Bay Sands",
+                    "google_place_id": "ChIJt1rLykIW2jER5iQeQJONKzY",
+                    "google_place_img_url": None,
+                    "address": "10 Bayfront Ave, Singapore 018956",
+                    "google_maps_name": "Marina Bay Sands",
+                    "story": "An iconic integrated resort featuring a hotel, casino, shopping mall, and the famous SkyPark with an infinity pool overlooking Singapore's skyline.",
+                    "pin_image_url": None,
+                    "story_keywords": "architecture, luxury, skyline, iconic",
+                    "gps_location": {
+                        "lat": 1.2839,
+                        "lng": 103.8608
+                    }
+                },
+                {
+                    "order": 2,
+                    "poi_title": "Gardens by the Bay",
+                    "google_place_id": "ChIJ-1rLykIW2jER5iQeQJONKzY",
+                    "google_place_img_url": None,
+                    "address": "18 Marina Gardens Dr, Singapore 018953",
+                    "google_maps_name": "Gardens by the Bay",
+                    "story": "A nature park spanning 101 hectares of reclaimed land, featuring the stunning Supertree Grove and climate-controlled conservatories showcasing plants from around the world.",
+                    "pin_image_url": None,
+                    "story_keywords": "nature, gardens, architecture, sustainability",
+                    "gps_location": {
+                        "lat": 1.2816,
+                        "lng": 103.8636
+                    }
+                },
+                {
+                    "order": 3,
+                    "poi_title": "Merlion Park",
+                    "google_place_id": "ChIJt1rLykIW2jER5iQeQJONKzY",
+                    "google_place_img_url": None,
+                    "address": "1 Fullerton Rd, Singapore 049213",
+                    "google_maps_name": "Merlion Park",
+                    "story": "Home to Singapore's iconic Merlion statue, a mythical creature with the head of a lion and body of a fish, symbolizing Singapore's origin as a fishing village.",
+                    "pin_image_url": None,
+                    "story_keywords": "iconic, symbol, history, culture",
+                    "gps_location": {
+                        "lat": 1.2868,
+                        "lng": 103.8545
+                    }
+                },
+                {
+                    "order": 4,
+                    "poi_title": "Singapore Flyer",
+                    "google_place_id": "ChIJt1rLykIW2jER5iQeQJONKzY",
+                    "google_place_img_url": None,
+                    "address": "30 Raffles Ave, Singapore 039803",
+                    "google_maps_name": "Singapore Flyer",
+                    "story": "One of the world's largest observation wheels, offering breathtaking 360-degree views of Singapore's cityscape, Marina Bay, and the surrounding islands.",
+                    "pin_image_url": None,
+                    "story_keywords": "observation, views, architecture, experience",
+                    "gps_location": {
+                        "lat": 1.2893,
+                        "lng": 103.8631
+                    }
+                }
+            ]
         
         return Tour(**tour_data)
     
