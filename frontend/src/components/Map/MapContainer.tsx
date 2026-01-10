@@ -8,7 +8,11 @@ import { cleanMapStyles } from './mapStyles';
 
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
-const MapContent = () => {
+interface MapContentProps {
+    showTourContent?: boolean;
+}
+
+const MapContent = ({ showTourContent = true }: MapContentProps) => {
     const { tour, currentStop, goToStop } = useTour();
     const map = useMap();
     // Dummy user position near the first stop
@@ -58,9 +62,9 @@ const MapContent = () => {
         requestAnimationFrame(animate);
     };
 
-    // Fly to current stop when it changes
+    // Fly to current stop when it changes (only when showing tour content)
     useEffect(() => {
-        if (map && currentStop) {
+        if (showTourContent && map && currentStop) {
             animateCameraTo({
                 center: currentStop.position,
                 zoom: 17,
@@ -68,7 +72,29 @@ const MapContent = () => {
                 heading: 0
             });
         }
-    }, [map, currentStop]);
+    }, [map, currentStop, showTourContent]);
+
+    if (!showTourContent) {
+        // Simple map view for onboarding
+        return (
+            <>
+                {/* User Position Marker */}
+                <AdvancedMarker
+                    position={userPosition}
+                >
+                    <div style={{
+                        width: '16px',
+                        height: '16px',
+                        backgroundColor: '#4285F4',
+                        borderRadius: '50%',
+                        border: '3px solid white',
+                        boxShadow: '0 0 8px rgba(0,0,0,0.3)',
+                        transform: 'translate(-50%, -50%)'
+                    }} />
+                </AdvancedMarker>
+            </>
+        );
+    }
 
     return (
         <>
@@ -146,11 +172,16 @@ const MapContent = () => {
     );
 };
 
-const MapContainer = () => {
+interface MapContainerProps {
+    height?: string;
+    showTourContent?: boolean;
+}
+
+const MapContainer = ({ height = '100dvh', showTourContent = true }: MapContainerProps) => {
     const defaultCenter = { lat: 1.2868, lng: 103.8545 }; // Default to Merlion
 
     return (
-        <div style={{ width: '100vw', height: '100dvh' }}>
+        <div style={{ width: '100%', height }}>
             <APIProvider apiKey={API_KEY}>
                 <Map
                     defaultCenter={defaultCenter}
@@ -166,7 +197,7 @@ const MapContainer = () => {
                     disableDoubleClickZoom={false}
                     draggable={true}
                 >
-                    <MapContent />
+                    <MapContent showTourContent={showTourContent} />
                 </Map>
             </APIProvider>
         </div>
