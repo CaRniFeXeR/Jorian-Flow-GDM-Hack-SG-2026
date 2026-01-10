@@ -577,19 +577,24 @@ async def generate_tour(request: GenerateTourRequest):
             poi_address = ordered_poi.get('poi_address', '')
             order = ordered_poi.get('order', 0)
 
-            # Get Google Maps details (place_id, name)
+            # Get Google Maps details (place_id, name, GPS location, photo URL)
             place_details = get_place_details(poi_title, poi_address)
 
             if place_details:
+                # Extract GPS location and photo URL if available
+                gps_location = place_details.get('gps_location')
+                photo_url = place_details.get('photo_url')
+                
                 poi_entry = {
                     "order": order,
                     "google_place_id": place_details.get('google_place_id', ''),
-                    "google_place_img_url": None,  # Can be added later
+                    "google_place_img_url": photo_url if photo_url else None,
                     "address": place_details.get('formatted_address', poi_address),
                     "google_maps_name": place_details.get('google_maps_name', poi_title),
                     "story": None,  # To be filled later
                     "pin_image_url": None,  # To be filled later
-                    "story_keywords": None  # To be filled later
+                    "story_keywords": None,  # To be filled later
+                    "gps_location": gps_location if gps_location else None
                 }
             else:
                 # Fallback if place details not found
@@ -601,7 +606,8 @@ async def generate_tour(request: GenerateTourRequest):
                     "google_maps_name": poi_title,
                     "story": None,
                     "pin_image_url": None,
-                    "story_keywords": None
+                    "story_keywords": None,
+                    "gps_location": None
                 }
 
             enriched_pois.append(poi_entry)
@@ -639,8 +645,8 @@ async def generate_tour(request: GenerateTourRequest):
         )
 
 
-@router.get("/{tour_id}", response_model=Tour)
-async def get_tour_by_id(tour_id: UUID):
+@router.get("/{tour_id}/{is_dummy}", response_model=Tour)
+async def get_tour_by_id(tour_id: UUID, is_dummy: bool = False):
     """
     Get a tour by its UUID.
 
@@ -679,6 +685,71 @@ async def get_tour_by_id(tour_id: UUID):
             tour_data['pois'] = []
         elif tour_data['pois'] is None:
             tour_data['pois'] = []
+        
+        # If is_dummy is True, replace POIs with dummy Singapore POIs
+        if is_dummy:
+            tour_data['pois'] = [
+                {
+                    "order": 1,
+                    "poi_title": "Marina Bay Sands",
+                    "google_place_id": "ChIJt1rLykIW2jER5iQeQJONKzY",
+                    "google_place_img_url": None,
+                    "address": "10 Bayfront Ave, Singapore 018956",
+                    "google_maps_name": "Marina Bay Sands",
+                    "story": "An iconic integrated resort featuring a hotel, casino, shopping mall, and the famous SkyPark with an infinity pool overlooking Singapore's skyline.",
+                    "pin_image_url": None,
+                    "story_keywords": "architecture, luxury, skyline, iconic",
+                    "gps_location": {
+                        "lat": 1.2839,
+                        "lng": 103.8608
+                    }
+                },
+                {
+                    "order": 2,
+                    "poi_title": "Gardens by the Bay",
+                    "google_place_id": "ChIJ-1rLykIW2jER5iQeQJONKzY",
+                    "google_place_img_url": None,
+                    "address": "18 Marina Gardens Dr, Singapore 018953",
+                    "google_maps_name": "Gardens by the Bay",
+                    "story": "A nature park spanning 101 hectares of reclaimed land, featuring the stunning Supertree Grove and climate-controlled conservatories showcasing plants from around the world.",
+                    "pin_image_url": None,
+                    "story_keywords": "nature, gardens, architecture, sustainability",
+                    "gps_location": {
+                        "lat": 1.2816,
+                        "lng": 103.8636
+                    }
+                },
+                {
+                    "order": 3,
+                    "poi_title": "Merlion Park",
+                    "google_place_id": "ChIJt1rLykIW2jER5iQeQJONKzY",
+                    "google_place_img_url": None,
+                    "address": "1 Fullerton Rd, Singapore 049213",
+                    "google_maps_name": "Merlion Park",
+                    "story": "Home to Singapore's iconic Merlion statue, a mythical creature with the head of a lion and body of a fish, symbolizing Singapore's origin as a fishing village.",
+                    "pin_image_url": None,
+                    "story_keywords": "iconic, symbol, history, culture",
+                    "gps_location": {
+                        "lat": 1.2868,
+                        "lng": 103.8545
+                    }
+                },
+                {
+                    "order": 4,
+                    "poi_title": "Singapore Flyer",
+                    "google_place_id": "ChIJt1rLykIW2jER5iQeQJONKzY",
+                    "google_place_img_url": None,
+                    "address": "30 Raffles Ave, Singapore 039803",
+                    "google_maps_name": "Singapore Flyer",
+                    "story": "One of the world's largest observation wheels, offering breathtaking 360-degree views of Singapore's cityscape, Marina Bay, and the surrounding islands.",
+                    "pin_image_url": None,
+                    "story_keywords": "observation, views, architecture, experience",
+                    "gps_location": {
+                        "lat": 1.2893,
+                        "lng": 103.8631
+                    }
+                }
+            ]
         
         return Tour(**tour_data)
     

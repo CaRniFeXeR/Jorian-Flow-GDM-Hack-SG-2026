@@ -9,6 +9,10 @@ export type ClientOptions = {
  */
 export type FilterPoiRequest = {
     /**
+     * Transaction Id
+     */
+    transaction_id: string;
+    /**
      * Pois
      */
     pois: Array<PoiInput>;
@@ -30,6 +34,24 @@ export type FilterPoiResponse = {
      * Total Verified
      */
     total_verified: number;
+};
+
+/**
+ * GPSLocation
+ */
+export type GpsLocation = {
+    /**
+     * Lat
+     *
+     * Latitude coordinate
+     */
+    lat: number;
+    /**
+     * Lng
+     *
+     * Longitude coordinate
+     */
+    lng: number;
 };
 
 /**
@@ -62,24 +84,6 @@ export type GeneratePoiResponse = {
 };
 
 /**
- * GenerateTourConstraints
- */
-export type GenerateTourConstraints = {
-    /**
-     * Max Time
-     */
-    max_time: string;
-    /**
-     * Distance
-     */
-    distance: string;
-    /**
-     * Custom
-     */
-    custom: string;
-};
-
-/**
  * GenerateTourRequest
  */
 export type GenerateTourRequest = {
@@ -87,11 +91,6 @@ export type GenerateTourRequest = {
      * Transaction Id
      */
     transaction_id: string;
-    /**
-     * Pois
-     */
-    pois: Array<PoiInput>;
-    constraints: GenerateTourConstraints;
 };
 
 /**
@@ -180,12 +179,6 @@ export type Poi = {
      */
     order: number;
     /**
-     * Filtered Candidate Poi List
-     *
-     * List of filtered candidate POIs
-     */
-    filtered_candidate_poi_list?: Array<string> | null;
-    /**
      * Poi Title
      *
      * Title of the POI
@@ -233,6 +226,10 @@ export type Poi = {
      * Keywords related to the story
      */
     story_keywords?: string | null;
+    /**
+     * GPS location with latitude and longitude
+     */
+    gps_location?: GpsLocation | null;
 };
 
 /**
@@ -369,6 +366,20 @@ export type Tour = {
      * Keywords for the tour storyline
      */
     storyline_keywords: string;
+    /**
+     * Constraints
+     *
+     * Constraints used for the tour
+     */
+    constraints?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Filtered Candidate Poi List
+     *
+     * List of candidate POIs after filtering
+     */
+    filtered_candidate_poi_list?: Array<Poi> | null;
 };
 
 /**
@@ -581,35 +592,39 @@ export type GenerateTourApiV1GenerateTourPostResponses = {
 
 export type GenerateTourApiV1GenerateTourPostResponse = GenerateTourApiV1GenerateTourPostResponses[keyof GenerateTourApiV1GenerateTourPostResponses];
 
-export type GetTourByIdApiV1TourIdGetData = {
+export type GetTourByIdApiV1TourIdIsDummyGetData = {
     body?: never;
     path: {
         /**
          * Tour Id
          */
         tour_id: string;
+        /**
+         * Is Dummy
+         */
+        is_dummy: boolean;
     };
     query?: never;
-    url: '/api/v1/{tour_id}';
+    url: '/api/v1/{tour_id}/{is_dummy}';
 };
 
-export type GetTourByIdApiV1TourIdGetErrors = {
+export type GetTourByIdApiV1TourIdIsDummyGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetTourByIdApiV1TourIdGetError = GetTourByIdApiV1TourIdGetErrors[keyof GetTourByIdApiV1TourIdGetErrors];
+export type GetTourByIdApiV1TourIdIsDummyGetError = GetTourByIdApiV1TourIdIsDummyGetErrors[keyof GetTourByIdApiV1TourIdIsDummyGetErrors];
 
-export type GetTourByIdApiV1TourIdGetResponses = {
+export type GetTourByIdApiV1TourIdIsDummyGetResponses = {
     /**
      * Successful Response
      */
     200: Tour;
 };
 
-export type GetTourByIdApiV1TourIdGetResponse = GetTourByIdApiV1TourIdGetResponses[keyof GetTourByIdApiV1TourIdGetResponses];
+export type GetTourByIdApiV1TourIdIsDummyGetResponse = GetTourByIdApiV1TourIdIsDummyGetResponses[keyof GetTourByIdApiV1TourIdIsDummyGetResponses];
 
 export type RootGetData = {
     body?: never;
