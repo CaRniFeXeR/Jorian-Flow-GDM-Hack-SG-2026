@@ -62,6 +62,104 @@ export type GeneratePoiResponse = {
 };
 
 /**
+ * GenerateTourConstraints
+ */
+export type GenerateTourConstraints = {
+    /**
+     * Max Time
+     */
+    max_time: string;
+    /**
+     * Distance
+     */
+    distance: string;
+    /**
+     * Custom
+     */
+    custom: string;
+};
+
+/**
+ * GenerateTourRequest
+ */
+export type GenerateTourRequest = {
+    /**
+     * Transaction Id
+     */
+    transaction_id: string;
+    /**
+     * Pois
+     */
+    pois: Array<PoiInput>;
+    constraints: GenerateTourConstraints;
+};
+
+/**
+ * GenerateTourResponse
+ */
+export type GenerateTourResponse = {
+    /**
+     * Transaction Id
+     */
+    transaction_id: string;
+    /**
+     * Success
+     */
+    success: boolean;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Pois Count
+     */
+    pois_count: number;
+};
+
+/**
+ * GuardrailConstraints
+ */
+export type GuardrailConstraints = {
+    /**
+     * Max Time
+     */
+    max_time: string;
+    /**
+     * Distance
+     */
+    distance: string;
+    /**
+     * Custom
+     */
+    custom: string;
+};
+
+/**
+ * GuardrailRequest
+ */
+export type GuardrailRequest = {
+    /**
+     * User Address
+     */
+    user_address: string;
+    constraints: GuardrailConstraints;
+};
+
+/**
+ * GuardrailResponse
+ */
+export type GuardrailResponse = {
+    /**
+     * Transaction Id
+     */
+    transaction_id: string;
+    /**
+     * Valid
+     */
+    valid: boolean;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -69,6 +167,72 @@ export type HttpValidationError = {
      * Detail
      */
     detail?: Array<ValidationError>;
+};
+
+/**
+ * POI
+ */
+export type Poi = {
+    /**
+     * Order
+     *
+     * Order of the POI in the tour
+     */
+    order: number;
+    /**
+     * Filtered Candidate Poi List
+     *
+     * List of filtered candidate POIs
+     */
+    filtered_candidate_poi_list?: Array<string> | null;
+    /**
+     * Poi Title
+     *
+     * Title of the POI
+     */
+    poi_title?: string | null;
+    /**
+     * Google Place Id
+     *
+     * Google Place ID for this POI
+     */
+    google_place_id: string;
+    /**
+     * Google Place Img Url
+     *
+     * Image URL from Google Places
+     */
+    google_place_img_url?: string | null;
+    /**
+     * Address
+     *
+     * Address of the POI
+     */
+    address?: string | null;
+    /**
+     * Google Maps Name
+     *
+     * Name from Google Maps
+     */
+    google_maps_name?: string | null;
+    /**
+     * Story
+     *
+     * Story or description for this POI
+     */
+    story?: string | null;
+    /**
+     * Pin Image Url
+     *
+     * URL for the pin image
+     */
+    pin_image_url?: string | null;
+    /**
+     * Story Keywords
+     *
+     * Keywords related to the story
+     */
+    story_keywords?: string | null;
 };
 
 /**
@@ -198,7 +362,7 @@ export type Tour = {
      *
      * List of Points of Interest
      */
-    pois?: Array<SchemasTourPoi>;
+    pois?: Array<Poi>;
     /**
      * Storyline Keywords
      *
@@ -237,60 +401,6 @@ export type RoutesTourPoi = {
      * Poi Address
      */
     poi_address: string;
-};
-
-/**
- * POI
- */
-export type SchemasTourPoi = {
-    /**
-     * Order
-     *
-     * Order of the POI in the tour
-     */
-    order: number;
-    /**
-     * Google Place Id
-     *
-     * Google Place ID for this POI
-     */
-    google_place_id: string;
-    /**
-     * Google Place Img Url
-     *
-     * Image URL from Google Places
-     */
-    google_place_img_url?: string | null;
-    /**
-     * Address
-     *
-     * Address of the POI
-     */
-    address?: string | null;
-    /**
-     * Google Maps Name
-     *
-     * Name from Google Maps
-     */
-    google_maps_name?: string | null;
-    /**
-     * Story
-     *
-     * Story or description for this POI
-     */
-    story?: string | null;
-    /**
-     * Pin Image Url
-     *
-     * URL for the pin image
-     */
-    pin_image_url?: string | null;
-    /**
-     * Story Keywords
-     *
-     * Keywords related to the story
-     */
-    story_keywords?: string | null;
 };
 
 export type GenerateTtsApiV1TtsTtsPostData = {
@@ -420,6 +530,56 @@ export type FilterPoiEndpointApiV1FilterPoiPostResponses = {
 };
 
 export type FilterPoiEndpointApiV1FilterPoiPostResponse = FilterPoiEndpointApiV1FilterPoiPostResponses[keyof FilterPoiEndpointApiV1FilterPoiPostResponses];
+
+export type GuardrailValidationApiV1GuardrailPostData = {
+    body: GuardrailRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/guardrail';
+};
+
+export type GuardrailValidationApiV1GuardrailPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GuardrailValidationApiV1GuardrailPostError = GuardrailValidationApiV1GuardrailPostErrors[keyof GuardrailValidationApiV1GuardrailPostErrors];
+
+export type GuardrailValidationApiV1GuardrailPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: GuardrailResponse;
+};
+
+export type GuardrailValidationApiV1GuardrailPostResponse = GuardrailValidationApiV1GuardrailPostResponses[keyof GuardrailValidationApiV1GuardrailPostResponses];
+
+export type GenerateTourApiV1GenerateTourPostData = {
+    body: GenerateTourRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/generate_tour';
+};
+
+export type GenerateTourApiV1GenerateTourPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GenerateTourApiV1GenerateTourPostError = GenerateTourApiV1GenerateTourPostErrors[keyof GenerateTourApiV1GenerateTourPostErrors];
+
+export type GenerateTourApiV1GenerateTourPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: GenerateTourResponse;
+};
+
+export type GenerateTourApiV1GenerateTourPostResponse = GenerateTourApiV1GenerateTourPostResponses[keyof GenerateTourApiV1GenerateTourPostResponses];
 
 export type GetTourByIdApiV1TourIdGetData = {
     body?: never;

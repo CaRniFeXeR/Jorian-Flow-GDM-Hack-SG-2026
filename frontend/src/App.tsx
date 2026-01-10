@@ -1,9 +1,13 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import MapContainer from './components/Map/MapContainer';
 import Drawer from './components/UI/Drawer';
 import Onboarding from './components/Onboarding/Onboarding';
+import TourGeneration from './components/Tour/TourGeneration';
+import ErrorScreen from './components/Tour/ErrorScreen';
+import TourView from './components/Tour/TourView';
 import { useOnboarding } from './context/OnboardingContext';
 
-function App() {
+function AppContent() {
   const { isOnboarding } = useOnboarding();
 
   if (isOnboarding) {
@@ -20,6 +24,20 @@ function App() {
       {/* Drawer for controls */}
       <Drawer />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<AppContent />} />
+        <Route path="/tour/generate/:tourId" element={<TourGeneration />} />
+        <Route path="/tour/:tourId" element={<TourView />} />
+        <Route path="/error" element={<ErrorScreen />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
 }
 
