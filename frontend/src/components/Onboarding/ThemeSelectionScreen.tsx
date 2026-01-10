@@ -101,6 +101,15 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onPrev }) =
             transition={{ duration: 0.3 }}
             className="max-w-2xl mx-auto"
         >
+            {/* Back button */}
+            <button
+                onClick={onPrev}
+                className="mb-1 px-4 py-2 flex items-center text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                Back
+            </button>
+
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
                 What interests you?
             </h2>
@@ -221,21 +230,14 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ onPrev }) =
                 </motion.div>
             )}
 
-            {/* Navigation */}
-            <div className="flex justify-between mt-8">
-                <button
-                    onClick={onPrev}
-                    className="px-6 py-3 flex items-center text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                >
-                    <ArrowLeft className="w-5 h-5 mr-2" />
-                    Back
-                </button>
+            {/* Start Generating Button - Full Width */}
+            <div className="mt-8">
                 <motion.button
                     whileHover={{ scale: isValidating || !canProceedFromStep2() ? 1 : 1.05 }}
                     whileTap={{ scale: isValidating || !canProceedFromStep2() ? 1 : 0.95 }}
                     onClick={handleStartGeneration}
                     disabled={isValidating || !canProceedFromStep2()}
-                    className={`px-8 py-4 flex items-center rounded-xl font-semibold transition-all ${
+                    className={`w-full px-8 py-4 flex items-center justify-center rounded-xl font-semibold transition-all ${
                         canProceedFromStep2() && !isValidating
                             ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg hover:shadow-xl'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
