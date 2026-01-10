@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useOnboarding } from '../../context/OnboardingContext';
 import MapContainer from '../Map/MapContainer';
-import { getThemeOptionsApiV1ThemeOptionsPost } from '../../client';
-import type { ThemeOptionsResponse } from '../../client';
+import { getThemeOptionsApiV1ThemeOptionsPost, guardrailValidationApiV1GuardrailPost } from '../../client';
+import type { ThemeOptionsResponse, GuardrailResponse } from '../../client';
 
 interface ThemeOption {
     id: string;
@@ -22,13 +23,14 @@ const Onboarding: React.FC = () => {
         setTheme,
         setDuration,
         setDistance,
-        completeOnboarding,
     } = useOnboarding();
 
     const [customTheme, setCustomTheme] = useState('');
     const [showCustomInput, setShowCustomInput] = useState(false);
     const [suggestedThemes, setSuggestedThemes] = useState<ThemeOption[]>([]);
     const [isLoadingThemes, setIsLoadingThemes] = useState(false);
+    const [isValidating, setIsValidating] = useState(false);
+    const navigate = useNavigate();
 
     // Extract emoji and label from theme name
     const parseThemeName = (themeName: string): { emoji: string; label: string } => {
@@ -156,6 +158,53 @@ const Onboarding: React.FC = () => {
         if (onboardingStep === 1 && !canProceedFromStep1()) return;
         setDirection(1);
         nextStep();
+    };
+
+    const handleStartGeneration = async () => {
+        if (!onboardingData.theme || onboardingData.theme.trim() === '') {
+            return;
+        }
+
+        setIsValidating(true);
+
+        try {
+            // Call guardrail validation API
+            const response = await guardrailValidationApiV1GuardrailPost({
+                body: {
+                    user_address: 'Singapore', // Default to Singapore for now
+                    constraints: {
+                        max_time: `${onboardingData.duration}`, // Convert to string format expected by API
+                        distance: `${onboardingData.distance}`, // Convert to string format
+                        custom: onboardingData.theme,
+                    },
+                },
+                baseUrl: 'http://localhost:8000',
+            });
+
+            if (response.error) {
+                console.error('Error validating tour:', response.error);
+                navigate('/error');
+                setIsValidating(false);
+                return;
+            }
+
+            const data = response.data as GuardrailResponse;
+
+            if (!data.valid) {
+                // Invalid theme, show error screen
+                navigate('/error');
+                setIsValidating(false);
+                return;
+            }
+
+            // Valid theme, navigate to tour generation page
+            navigate(`/tour/generate/${data.transaction_id}`);
+            setIsValidating(false);
+        } catch (error) {
+            console.error('Error starting tour generation:', error);
+            navigate('/error');
+            setIsValidating(false);
+        }
     };
 
     const handlePrev = () => {
@@ -433,13 +482,25 @@ const Onboarding: React.FC = () => {
                                         Back
                                     </button>
                                     <motion.button
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={completeOnboarding}
-                                        className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-shadow flex items-center"
+                                        whileHover={{ scale: isValidating ? 1 : 1.05 }}
+                                        whileTap={{ scale: isValidating ? 1 : 0.95 }}
+                                        onClick={handleStartGeneration}
+                                        disabled={isValidating}
+                                        className={`px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-shadow flex items-center ${
+                                            isValidating ? 'opacity-75 cursor-not-allowed' : ''
+                                        }`}
                                     >
-                                        Start Generating Tour
-                                        <Sparkles className="w-5 h-5 ml-2" />
+                                        {isValidating ? (
+                                            <>
+                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                                Checking your input...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Start Generating Tour
+                                                <Sparkles className="w-5 h-5 ml-2" />
+                                            </>
+                                        )}
                                     </motion.button>
                                 </div>
                             </motion.div>

@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { FilterPoiEndpointApiV1FilterPoiPostData, FilterPoiEndpointApiV1FilterPoiPostErrors, FilterPoiEndpointApiV1FilterPoiPostResponses, GeneratePoiEndpointApiV1GeneratePoiPostData, GeneratePoiEndpointApiV1GeneratePoiPostErrors, GeneratePoiEndpointApiV1GeneratePoiPostResponses, GenerateTtsApiV1TtsTtsPostData, GenerateTtsApiV1TtsTtsPostErrors, GenerateTtsApiV1TtsTtsPostResponses, GetThemeOptionsApiV1ThemeOptionsPostData, GetThemeOptionsApiV1ThemeOptionsPostErrors, GetThemeOptionsApiV1ThemeOptionsPostResponses, GetTourByIdApiV1TourIdGetData, GetTourByIdApiV1TourIdGetErrors, GetTourByIdApiV1TourIdGetResponses, HealthCheckHealthGetData, HealthCheckHealthGetResponses, ReadAudioApiV1TtsAudioFilenameGetData, ReadAudioApiV1TtsAudioFilenameGetErrors, ReadAudioApiV1TtsAudioFilenameGetResponses, RootGetData, RootGetResponses } from './types.gen';
+import type { FilterPoiEndpointApiV1FilterPoiPostData, FilterPoiEndpointApiV1FilterPoiPostErrors, FilterPoiEndpointApiV1FilterPoiPostResponses, GeneratePoiEndpointApiV1GeneratePoiPostData, GeneratePoiEndpointApiV1GeneratePoiPostErrors, GeneratePoiEndpointApiV1GeneratePoiPostResponses, GenerateTourApiV1GenerateTourPostData, GenerateTourApiV1GenerateTourPostErrors, GenerateTourApiV1GenerateTourPostResponses, GenerateTtsApiV1TtsTtsPostData, GenerateTtsApiV1TtsTtsPostErrors, GenerateTtsApiV1TtsTtsPostResponses, GetThemeOptionsApiV1ThemeOptionsPostData, GetThemeOptionsApiV1ThemeOptionsPostErrors, GetThemeOptionsApiV1ThemeOptionsPostResponses, GetTourByIdApiV1TourIdGetData, GetTourByIdApiV1TourIdGetErrors, GetTourByIdApiV1TourIdGetResponses, GuardrailValidationApiV1GuardrailPostData, GuardrailValidationApiV1GuardrailPostErrors, GuardrailValidationApiV1GuardrailPostResponses, HealthCheckHealthGetData, HealthCheckHealthGetResponses, ReadAudioApiV1TtsAudioFilenameGetData, ReadAudioApiV1TtsAudioFilenameGetErrors, ReadAudioApiV1TtsAudioFilenameGetResponses, RootGetData, RootGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -126,6 +126,67 @@ export const generatePoiEndpointApiV1GeneratePoiPost = <ThrowOnError extends boo
  */
 export const filterPoiEndpointApiV1FilterPoiPost = <ThrowOnError extends boolean = false>(options: Options<FilterPoiEndpointApiV1FilterPoiPostData, ThrowOnError>) => (options.client ?? client).post<FilterPoiEndpointApiV1FilterPoiPostResponses, FilterPoiEndpointApiV1FilterPoiPostErrors, ThrowOnError>({
     url: '/api/v1/filter_poi',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Guardrail Validation
+ *
+ * Validate if a user's tour request is legitimate for their current location.
+ *
+ * This endpoint uses Gemini AI to check if the user's custom tour preferences
+ * make sense given their location. For example, a "chicken rice tour" in Singapore
+ * would be valid, but the same request in New York would be invalid.
+ *
+ * The validation result is stored in the tours table with status_code indicating
+ * whether the request passed validation.
+ *
+ * Args:
+ * request: GuardrailRequest containing user address and constraints
+ *
+ * Returns:
+ * GuardrailResponse with transaction_id and validation result
+ *
+ * Raises:
+ * HTTPException: If there's an error during validation
+ */
+export const guardrailValidationApiV1GuardrailPost = <ThrowOnError extends boolean = false>(options: Options<GuardrailValidationApiV1GuardrailPostData, ThrowOnError>) => (options.client ?? client).post<GuardrailValidationApiV1GuardrailPostResponses, GuardrailValidationApiV1GuardrailPostErrors, ThrowOnError>({
+    url: '/api/v1/guardrail',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Generate Tour
+ *
+ * Generate and plan the routing of a tour.
+ *
+ * This endpoint takes filtered POIs and orders them optimally for a tour.
+ * It updates the database with:
+ * - order: Sequence in which POIs should be visited
+ * - poi_title: Name of the POI
+ * - address: Location address
+ * - google_place_id: Google Maps Place ID
+ * - google_maps_name: Official name from Google Maps
+ *
+ * Args:
+ * request: GenerateTourRequest with transaction_id, POIs, and constraints
+ *
+ * Returns:
+ * GenerateTourResponse with success status and POI count
+ *
+ * Raises:
+ * HTTPException: If tour not found or error during generation
+ */
+export const generateTourApiV1GenerateTourPost = <ThrowOnError extends boolean = false>(options: Options<GenerateTourApiV1GenerateTourPostData, ThrowOnError>) => (options.client ?? client).post<GenerateTourApiV1GenerateTourPostResponses, GenerateTourApiV1GenerateTourPostErrors, ThrowOnError>({
+    url: '/api/v1/generate_tour',
     ...options,
     headers: {
         'Content-Type': 'application/json',

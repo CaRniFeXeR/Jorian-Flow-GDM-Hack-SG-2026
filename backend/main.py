@@ -55,18 +55,68 @@ async def openapi_json():
     return openapi_schema
 
 
+def get_endpoints_from_routes(app: FastAPI) -> dict:
+    """Auto-generate endpoint descriptions from FastAPI routes."""
+    from fastapi.routing import APIRoute
+    
+    endpoints = {}
+    
+    for route in app.routes:
+        # Only process APIRoute instances (skip static routes, etc.)
+        if not isinstance(route, APIRoute):
+            continue
+        
+        # Skip routes that are not included in the schema
+        if not route.include_in_schema:
+            continue
+        
+        # Get the path
+        path = route.path
+        
+        # Get HTTP methods for the route
+        methods = sorted(route.methods - {'HEAD', 'OPTIONS'})  # Exclude HEAD and OPTIONS
+        
+        # Skip if no methods or if it's a root/health route
+        if not methods or path in ['/', '/health']:
+            continue
+        
+        # Get description from route (prefer summary, fallback to docstring)
+        description = ""
+        if hasattr(route, 'summary') and route.summary:
+            description = route.summary
+        elif route.endpoint and hasattr(route.endpoint, '__doc__') and route.endpoint.__doc__:
+            # Extract first line of docstring as description
+            docstring = route.endpoint.__doc__.strip()
+            if docstring:
+                first_line = docstring.split('\n')[0].strip()
+                description = first_line
+        
+        # Format endpoint info
+        for method in methods:
+            method_str = method
+            if description:
+                endpoint_info = f"{method_str} - {description}"
+            else:
+                endpoint_info = method_str
+            
+            # Store endpoint info (combine if multiple methods exist)
+            if path in endpoints:
+                # Check if this method is already listed
+                if method_str not in endpoints[path]:
+                    endpoints[path] = f"{endpoints[path]}, {endpoint_info}"
+            else:
+                endpoints[path] = endpoint_info
+    
+    return endpoints
+
+
 @app.get("/")
 async def root():
+    endpoints = get_endpoints_from_routes(app)
     return {
         "message": "Welcome to Jorian Flow Tour API",
-        "version": "1.0.0",
-        "endpoints": {
-            "/api/v1/theme_options": "POST - Generate thematic tour options for a location",
-            "/api/v1/generate_poi": "POST - Generate POIs based on coordinates and constraints",
-            "/api/v1/filter_poi": "POST - Filter and verify POIs using Google Maps Places API",
-            "/api/v1/tts/tts": "POST - Generate text-to-speech audio",
-            "/api/v1/tts/audio/{filename}": "GET - Stream audio file",
-        }
+        "version": app.version,
+        "endpoints": endpoints
     }
 
 
