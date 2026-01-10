@@ -29,7 +29,7 @@ const TourGeneration: React.FC = () => {
         const pollTour = async () => {
             try {
                 const response = await getTourByIdApiV1TourIdIsDummyGet({
-                    path: { tour_id: tourId, is_dummy: true },
+                    path: { tour_id: tourId, is_dummy: import.meta.env.VITE_USE_DUMMY_DATA === 'true' },
                     baseUrl: 'http://localhost:8000',
                 });
 

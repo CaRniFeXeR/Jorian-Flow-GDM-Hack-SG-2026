@@ -17,7 +17,7 @@ const TourStopsList: React.FC<TourStopsListProps> = ({
     }
 
     return (
-        <div className="space-y-2">
+        <div className="space-y-2 mb-24" >
             <h4 className="text-lg font-semibold text-gray-900 mb-3">Tour Stops</h4>
             {sortedPois.map((poi) => {
                 const isCurrent = currentStopIndex !== null && sortedPois[currentStopIndex]?.order === poi.order;

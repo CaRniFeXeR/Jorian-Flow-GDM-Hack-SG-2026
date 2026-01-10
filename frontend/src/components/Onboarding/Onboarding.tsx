@@ -58,8 +58,8 @@ const Onboarding: React.FC = () => {
             setIsLoadingThemes(true);
             getThemeOptionsApiV1ThemeOptionsPost({
                 body: {
-                    address: 'Singapore',
-                    use_dummy_data: true
+                    address: 'Northumberland Road, Singapore',
+                    use_dummy_data: import.meta.env.VITE_USE_DUMMY_DATA === 'true'
                 },
                 baseUrl: 'http://localhost:8000'
             })
