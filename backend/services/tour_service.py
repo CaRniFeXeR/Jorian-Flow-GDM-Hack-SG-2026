@@ -62,9 +62,20 @@ class TourService:
             distance: Maximum distance constraint
             constraints: Full constraints dictionary
         """
+        # Geocode user address to get coordinates
+        user_location = None
+        try:
+            from services.maps_service import get_coordinates_from_address
+            lat, lng = get_coordinates_from_address(user_address)
+            user_location = {"lat": lat, "lng": lng}
+            logger.info(f"📍 Geocoded user location: {lat}, {lng}")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not geocode user address '{user_address}': {str(e)}")
+        
         tour_data = {
             "id": transaction_id,
             "user_address": user_address,
+            "user_location": user_location,
             "theme": theme,
             "status_code": status_code,
             "max_distance_km": parse_distance_to_km(distance),

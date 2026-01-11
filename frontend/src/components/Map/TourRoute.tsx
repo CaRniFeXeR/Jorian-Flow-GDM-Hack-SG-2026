@@ -41,20 +41,34 @@ const TourRoute: React.FC<TourRouteProps> = ({ stops }) => {
     }, [map]);
 
     useEffect(() => {
-        if (!directionsRenderer || stops.length < 2) return;
+        // Need at least 2 stops: user location (start) + at least 1 POI + user location (end)
+        // Or at least 1 POI between start and end user locations
+        if (!directionsRenderer || stops.length < 3) return;
 
         const directionsService = new google.maps.DirectionsService();
 
-        const waypoints = stops.slice(1, -1).map(stop => ({
+        // The route should start and end at user location (first and last stop)
+        // and go through all POIs (middle stops) as waypoints
+        const userLocation = stops[0].position;
+        const poiStops = stops.slice(1, -1); // All stops except first (user start) and last (user end)
+
+        if (poiStops.length === 0) {
+            // No POIs, just return (no route to draw)
+            return;
+        }
+
+        const waypoints = poiStops.map(stop => ({
             location: stop.position,
             stopover: true
         }));
 
+        // Route: user location -> POIs -> back to user location
         directionsService.route({
-            origin: stops[0].position,
-            destination: stops[stops.length - 1].position,
-            waypoints: waypoints,
-            travelMode: google.maps.TravelMode.WALKING
+            origin: userLocation,
+            destination: userLocation, // Tour ends back at starting location
+            waypoints: waypoints, // All POIs are intermediate waypoints
+            travelMode: google.maps.TravelMode.WALKING,
+            optimizeWaypoints: false // Keep the order as specified
         }, (result, status) => {
             if (status === google.maps.DirectionsStatus.OK) {
                 directionsRenderer.setDirections(result);

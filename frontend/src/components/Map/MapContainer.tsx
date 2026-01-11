@@ -198,8 +198,46 @@ const MapContent = ({ showTourContent = true, pois, activePoiIndex, userLocation
         );
     }
 
-    // Use POI stops if available, otherwise use tour stops
-    const stopsToShow = poiStops.length > 0 ? poiStops : tour.stops;
+    // Create route stops: user location first, then POIs, then user location again at the end
+    const routeStops = useMemo(() => {
+        const stops: Array<{
+            id: number | string;
+            name: string;
+            position: { lat: number; lng: number };
+            imageUrl: string;
+            audioUrl: string;
+        }> = [];
+
+        // Add user location as first stop (start of route)
+        stops.push({
+            id: 'user-start',
+            name: 'Start',
+            position: userPosition,
+            imageUrl: '',
+            audioUrl: '',
+        });
+
+        // Add all POI stops
+        if (poiStops.length > 0) {
+            stops.push(...poiStops);
+        } else if (tour?.stops) {
+            stops.push(...tour.stops);
+        }
+
+        // Add user location as last stop (end of route)
+        stops.push({
+            id: 'user-end',
+            name: 'End',
+            position: userPosition,
+            imageUrl: '',
+            audioUrl: '',
+        });
+
+        return stops;
+    }, [poiStops, tour?.stops, userPosition]);
+
+    // Use POI stops for markers (without user location markers)
+    const stopsToShow = poiStops.length > 0 ? poiStops : tour?.stops || [];
 
     // Determine active stop based on activePoiIndex if provided, otherwise use TourContext
     const getIsActive = (stop: any) => {
@@ -216,7 +254,7 @@ const MapContent = ({ showTourContent = true, pois, activePoiIndex, userLocation
 
     return (
         <>
-            {stopsToShow.length >= 2 && <TourRoute stops={stopsToShow as any} />}
+            {routeStops.length >= 2 && <TourRoute stops={routeStops as any} />}
             {stopsToShow.map((stop, index: number) => (
                 <StopMarker
                     key={stop.id}

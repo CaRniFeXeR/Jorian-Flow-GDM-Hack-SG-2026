@@ -411,6 +411,10 @@ export type Tour = {
      */
     user_address: string;
     /**
+     * User's starting location GPS coordinates
+     */
+    user_location?: GpsLocation | null;
+    /**
      * Theme
      *
      * Theme of the tour

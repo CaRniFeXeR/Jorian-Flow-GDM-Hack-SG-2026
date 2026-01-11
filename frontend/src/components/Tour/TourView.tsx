@@ -87,6 +87,14 @@ const TourView: React.FC = () => {
 
                 const tourData = response.data as Tour;
                 setTour(tourData);
+                
+                // Use tour's user_location if available, otherwise keep using geolocation
+                if (tourData.user_location && tourData.user_location.lat && tourData.user_location.lng) {
+                    setUserLocation({
+                        lat: tourData.user_location.lat,
+                        lng: tourData.user_location.lng
+                    });
+                }
             } catch (error) {
                 console.error('Error loading tour:', error);
             }

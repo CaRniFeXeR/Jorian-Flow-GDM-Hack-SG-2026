@@ -42,6 +42,7 @@ class POI(BaseModel):
 class Tour(BaseModel):
     id: UUID = Field(..., description="Unique identifier for the tour")
     user_address: str = Field(..., description="User's starting location address")
+    user_location: Optional[GPSLocation] = Field(None, description="User's starting location GPS coordinates")
     theme: str = Field(..., description="Theme of the tour")
     status_code: str = Field(..., description="Status code of the tour")
     max_distance_km: float = Field(..., description="Maximum distance in kilometers")
